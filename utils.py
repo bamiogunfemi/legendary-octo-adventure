@@ -25,7 +25,7 @@ def extract_skills_from_text(text):
     skills = [s.strip(' .,') for s in text.split(',')]
     return [s for s in skills if s and len(s) > 2]
 
-def parse_job_description(jd_text):
+def parse_job_description(jd_text, custom_years=None):
     """Parse job description text into structured format"""
     try:
         lines = jd_text.strip().split('\n')
@@ -33,7 +33,7 @@ def parse_job_description(jd_text):
         job_requirements = {
             'role': '',
             'required_skills': [],
-            'required_years': 0
+            'required_years': custom_years if custom_years is not None else 0
         }
 
         current_section = None
@@ -67,29 +67,12 @@ def parse_job_description(jd_text):
                 skills_section = False
                 continue
 
-            # Experience detection
-            if in_requirements:
-                # Look for years of experience patterns
-                year_patterns = [
-                    r'(\d+)\+?\s*(?:years?|yrs?)',
-                    r'(\d+)\s*\+\s*years?',
-                    r'minimum\s*(?:of\s*)?(\d+)\s*years?'
-                ]
-
-                for pattern in year_patterns:
-                    match = re.search(pattern, lower_line, re.IGNORECASE)
-                    if match:
-                        years = int(match.group(1))
-                        if years > job_requirements['required_years']:
-                            job_requirements['required_years'] = years
-                            st.sidebar.info(f"✅ Required Experience: {years} years")
-
-                # Skills detection from bullet points or lists
-                if line.startswith(('•', '-', '*', '→')):
-                    skill_line = line.lstrip('•-*→ \t').strip()
-                    if skills_section:  # Only process if in required skills section
-                        extracted_skills = extract_skills_from_text(skill_line)
-                        job_requirements['required_skills'].extend(extracted_skills)
+            # Skills detection from bullet points or lists
+            if line.startswith(('•', '-', '*', '→')):
+                skill_line = line.lstrip('•-*→ \t').strip()
+                if skills_section:  # Only process if in required skills section
+                    extracted_skills = extract_skills_from_text(skill_line)
+                    job_requirements['required_skills'].extend(extracted_skills)
 
         # Handle simple list format
         if not job_requirements['required_skills']:
@@ -110,18 +93,6 @@ def parse_job_description(jd_text):
             job_requirements['role'] = "Backend Integration Engineer"
             st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
 
-        # Allow custom years of experience override
-        custom_years = st.sidebar.number_input(
-            "Override required years of experience",
-            min_value=0,
-            max_value=20,
-            value=job_requirements['required_years'],
-            help="Set your preferred years of experience requirement"
-        )
-        if custom_years != job_requirements['required_years']:
-            job_requirements['required_years'] = custom_years
-            st.sidebar.info(f"✅ Updated Experience Requirement: {custom_years} years")
-
         # Show parsed skills
         if job_requirements['required_skills']:
             st.sidebar.info("✅ Detected Required Skills:")
@@ -135,7 +106,7 @@ def parse_job_description(jd_text):
         return {
             'role': '',
             'required_skills': [],
-            'required_years': 0
+            'required_years': custom_years if custom_years is not None else 0
         }
 
 def prepare_export_data(results):

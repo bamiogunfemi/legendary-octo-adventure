@@ -21,6 +21,15 @@ def main():
         help="Enter the complete job description including role, required skills, experience, and certifications"
     )
 
+    # Years of experience input before the evaluate button
+    years_exp = st.sidebar.number_input(
+        "Required Years of Experience",
+        min_value=0,
+        max_value=20,
+        value=8,
+        help="Set the minimum years of experience required"
+    )
+
     # Google Sheet input
     st.sidebar.header("CV Source")
     sheet_id = st.sidebar.text_input(
@@ -41,7 +50,7 @@ def main():
         try:
             with st.spinner("Fetching CV data..."):
                 # Parse job requirements
-                job_requirements = parse_job_description(jd_text)
+                job_requirements = parse_job_description(jd_text, years_exp)
                 st.sidebar.write("Parsed Job Requirements:", job_requirements)
 
                 # Fetch CV data
