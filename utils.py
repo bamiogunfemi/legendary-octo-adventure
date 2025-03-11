@@ -47,6 +47,9 @@ def parse_document_for_experience(cv_url):
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
 
+        # Debug output
+        st.write("Processing CV URL:", cv_url)
+
         if 'drive.google.com' in cv_url:
             # Extract file ID and download content using Google Drive API
             if '/file/d/' in cv_url:
@@ -130,11 +133,16 @@ def parse_document_for_experience(cv_url):
         if not text.strip():
             return None, None, "No text content found in document"
 
+        # Log full CV content
+        st.write("Full CV Content:")
+        st.text(text[:1000] + "..." if len(text) > 1000 else text)
+
         # Get the first non-empty line
         first_line = None
         for line in text.split('\n'):
             if line.strip():
                 first_line = line.strip()
+                st.write("First Line Found:", first_line)
                 break
 
         if not first_line:

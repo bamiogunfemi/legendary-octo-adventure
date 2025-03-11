@@ -118,9 +118,6 @@ Nice to have
                         start_date_str=row.get('Experience Start Date', '')
                     )
 
-                    if first_line:
-                        st.write(f"CV First Line: {first_line}")
-
                     # Create CV dictionary
                     cv_dict = {
                         'name': cv_name,
