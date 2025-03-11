@@ -42,6 +42,7 @@ def main():
             with st.spinner("Fetching CV data..."):
                 # Parse job requirements
                 job_requirements = parse_job_description(jd_text)
+                st.sidebar.write("Parsed Job Requirements:", job_requirements)
 
                 # Fetch CV data
                 cv_data = google_client.get_sheet_data(sheet_id, sheet_range)
@@ -54,20 +55,28 @@ def main():
                 results = []
                 for _, row in cv_data.iterrows():
                     cv_dict = row.to_dict()
-                    # Convert skills and certifications to lists
-                    cv_dict['skills'] = row.get('skills', '').split(',')
-                    cv_dict['certifications'] = row.get('certifications', '').split(',')
+
+                    # Safely convert skills and certifications to lists
+                    skills = cv_dict.get('skills', '')
+                    certifications = cv_dict.get('certifications', '')
+
+                    cv_dict['skills'] = [s.strip() for s in str(skills).split(',') if s.strip()] if skills else []
+                    cv_dict['certifications'] = [c.strip() for c in str(certifications).split(',') if c.strip()] if certifications else []
+
+                    # Add basic info first
+                    evaluation = {
+                        'name': str(row.get('name', '')),
+                        'email': str(row.get('email', '')),
+                        'current_role': str(row.get('current_role', ''))
+                    }
 
                     # Evaluate CV
-                    evaluation = scoring_engine.evaluate_cv(cv_dict, job_requirements)
+                    result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
+                    evaluation.update(result)
 
-                    # Add candidate info
-                    evaluation.update({
-                        'name': row.get('name', ''),
-                        'email': row.get('email', ''),
-                        'current_role': row.get('current_role', ''),
-                        'reasons_not_suitable': '\n'.join(evaluation.get('reasons', []))
-                    })
+                    # Format reasons if present
+                    if 'reasons' in result:
+                        evaluation['reasons_not_suitable'] = '\n'.join(result['reasons'])
 
                     results.append(evaluation)
 
@@ -89,13 +98,18 @@ def main():
                     st.metric("Average Score", f"{avg_score:.2f}")
 
                 # Detailed results table
-                # Show reasons for not suitable candidates
-                if 'reasons_not_suitable' in results_df.columns:
-                    results_df_display = results_df.copy()
-                    results_df_display.loc[results_df_display['status'] != 'Not Suitable', 'reasons_not_suitable'] = ''
-                    st.dataframe(results_df_display)
-                else:
-                    st.dataframe(results_df)
+                st.write("### Detailed Results")
+                st.dataframe(
+                    results_df,
+                    column_config={
+                        "name": "Name",
+                        "email": "Email",
+                        "current_role": "Current Role",
+                        "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
+                        "status": "Status",
+                        "reasons_not_suitable": st.column_config.TextColumn("Reasons (if not suitable)")
+                    }
+                )
 
                 # Export option
                 csv = results_df.to_csv(index=False)
