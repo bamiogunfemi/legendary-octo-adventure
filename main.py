@@ -143,9 +143,9 @@ Nice to have
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
-                        'current_role': cv_dict['current_role'],  # Add current role
+                        'current_role': cv_dict['current_role'],
                         'years_experience': years_exp,
-                        'skills': ', '.join(cv_dict['skills']),
+                        'extracted_skills': ', '.join(result.get('extracted_skills', [])),  # Add extracted skills
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
@@ -195,10 +195,16 @@ Nice to have
                         "name": "Name",
                         "email": "Email",
                         "cv_link": st.column_config.LinkColumn("CV Link"),
-                        "current_role": "Current Role",  # Add current role column
+                        "current_role": "Current Role",
                         "years_experience": "Years of Experience",
-                        "skills": "Skills",
-                        "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
+                        "extracted_skills": st.column_config.TextColumn(
+                            "Technical Skills",
+                            help="Automatically extracted technical skills from CV"
+                        ),
+                        "overall_score": st.column_config.NumberColumn(
+                            "Overall Score",
+                            format="%.2f"
+                        ),
                         "status": "Status",
                         "document_errors": "CV Processing Issues",
                         "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons")

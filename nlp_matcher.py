@@ -19,10 +19,58 @@ class NLPMatcher:
             # Initialize after downloading
             self.stop_words = set(stopwords.words('english'))
             self.lemmatizer = WordNetLemmatizer()
+
+            # Common technical skills patterns
+            self.tech_skills_patterns = {
+                'programming_languages': r'\b(python|java|javascript|typescript|go|golang|ruby|php|swift|kotlin|scala|rust|c\+\+|c#)\b',
+                'frameworks': r'\b(django|flask|fastapi|spring|react|angular|vue|express|node\.js|tensorflow|pytorch)\b',
+                'databases': r'\b(postgresql|mysql|mongodb|redis|elasticsearch|cassandra|dynamodb|oracle)\b',
+                'cloud': r'\b(aws|azure|gcp|google cloud|kubernetes|docker|terraform|ansible)\b',
+                'tools': r'\b(git|jenkins|travis|circleci|maven|gradle|npm|yarn|webpack|babel)\b',
+                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai)\b',
+                'methodologies': r'\b(agile|scrum|kanban|tdd|bdd|ci/cd)\b'
+            }
+
         except Exception as e:
             st.error(f"Error initializing NLP components: {str(e)}")
             self.stop_words = set()
             self.lemmatizer = None
+
+    def extract_technical_skills(self, text):
+        """Extract technical skills from text using pre-defined patterns"""
+        if not isinstance(text, str):
+            return []
+
+        text = text.lower()
+        found_skills = set()
+
+        # Extract skills using patterns
+        for category, pattern in self.tech_skills_patterns.items():
+            matches = re.finditer(pattern, text)
+            for match in matches:
+                skill = match.group()
+                # Normalize some common variations
+                skill = {
+                    'node.js': 'nodejs',
+                    'react.js': 'react',
+                    'vue.js': 'vue'
+                }.get(skill, skill)
+                found_skills.add(skill)
+
+        # Additional common technology keywords
+        tech_keywords = {
+            'api', 'rest', 'graphql', 'microservices', 'sql', 'nosql',
+            'linux', 'unix', 'bash', 'shell', 'css', 'html', 'http',
+            'websocket', 'oauth', 'jwt', 'xml', 'json', 'yaml',
+            'git', 'cicd', 'devops', 'backend', 'frontend', 'fullstack'
+        }
+
+        # Look for technology keywords
+        words = set(word_tokenize(text))
+        tech_found = words.intersection(tech_keywords)
+        found_skills.update(tech_found)
+
+        return sorted(list(found_skills))
 
     def preprocess_text(self, text):
         """Advanced text preprocessing"""
