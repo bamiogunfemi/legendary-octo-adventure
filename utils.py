@@ -29,8 +29,8 @@ def get_google_drive_file_url(url):
             st.warning(f"Could not extract file ID from URL: {url}")
             return None
 
-        # Return the direct download URL with confirmation bypass
-        return f"https://drive.google.com/uc?export=download&confirm=yes&id={file_id}"
+        # Return download URL with additional parameters
+        return f"https://drive.google.com/u/0/uc?id={file_id}&export=download&confirm=t&uuid=123"
     except Exception as e:
         st.warning(f"Error processing Google Drive URL: {str(e)}")
         return None
@@ -45,52 +45,50 @@ def parse_document_for_experience(cv_url):
                 st.warning("Could not process Google Drive URL")
                 return None
 
-        # Download file with redirects and verify=False for Google Drive
+        # Custom headers for Google Drive
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Cookie': ''
         }
-        response = requests.get(cv_url, headers=headers, allow_redirects=True, verify=False)
 
-        if response.status_code != 200:
-            st.warning(f"Could not download file from URL: {cv_url}")
-            return None
+        # First request to get the warning page
+        session = requests.Session()
+        response = session.get(cv_url, headers=headers, verify=False)
 
-        # Get filename from content-disposition header or URL
-        filename = None
-        content_disp = response.headers.get('content-disposition')
-        if content_disp:
-            filename_match = re.findall("filename=(.+)", content_disp)
-            if filename_match:
-                filename = filename_match[0].strip('"\'')
-
-        if not filename:
-            filename = cv_url.split('/')[-1].split('?')[0]  # Remove query parameters
-
-        # Determine file type from filename or content
-        file_type = None
-        if filename.lower().endswith('.pdf'):
-            file_type = 'pdf'
-        elif filename.lower().endswith(('.doc', '.docx')):
-            file_type = 'doc'
+        if 'Content-Disposition' in response.headers:
+            content = response.content
         else:
-            # Try to determine from content
-            content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' in content_type:
-                file_type = 'pdf'
-            elif 'word' in content_type or 'msword' in content_type:
-                file_type = 'doc'
-            elif 'application/octet-stream' in content_type:
-                # Try to guess from the content
-                if response.content.startswith(b'%PDF'):
-                    file_type = 'pdf'
+            # If we got the warning page, look for the download link
+            confirm_token = None
+            for line in response.text.split('\n'):
+                if 'confirm=' in line:
+                    confirm_token = line.split('confirm=')[1].split('&')[0]
+                    break
+
+            if confirm_token:
+                # Make second request with confirmation token
+                confirmed_url = f"{cv_url}&confirm={confirm_token}"
+                response = session.get(confirmed_url, headers=headers, verify=False)
+                content = response.content
+            else:
+                content = response.content
+
+        # Determine file type from content
+        file_type = None
+        if content.startswith(b'%PDF'):
+            file_type = 'pdf'
+        elif content.startswith(b'PK\x03\x04'):  # docx file signature
+            file_type = 'doc'
 
         if not file_type:
-            st.warning(f"Could not determine file type for: {filename}")
-            st.info("Content-Type received: " + response.headers.get('content-type', 'None'))
+            st.warning(f"Could not determine file type from content")
+            st.info(f"File signature: {content[:10]}")
             return None
 
-        # Extract text based on file type
-        file_content = io.BytesIO(response.content)
+        # Process the content based on file type
+        file_content = io.BytesIO(content)
         text = ""
         try:
             if file_type == 'pdf':
@@ -109,6 +107,7 @@ def parse_document_for_experience(cv_url):
             st.warning("No text content found in the document")
             return None
 
+        # Look for experience section and dates
         experience_patterns = [
             r"(?:Experience|Work History|Employment|Career History)",
             r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
