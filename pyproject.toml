@@ -9,4 +9,5 @@ dependencies = [
     "nltk>=3.9.1",
     "pandas>=2.2.3",
     "streamlit>=1.43.1",
+    "twilio>=9.4.6",
 ]
