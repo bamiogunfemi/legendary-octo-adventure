@@ -1,0 +1,81 @@
+
+COMPANY OVERVIEW:
+Port is a company that develops an internal developer platform (IDP) designed to streamline the software development lifecycle and DevOps processes. Their platform provides a single source of truth for all infrastructure assets and operations within an organization's tech stack. This allows developers to perform self-service actions, such as provisioning development environments and managing microservices.
+
+Website: https://getport.io
+Role Type: fulltime
+
+About The Role
+Port is seeking a Backend Integration Engineer with expertise in Python to develop and maintain integrations within its Internal Developer Platform (IDP). This role focuses on building scalable backend systems, integrating third-party tools, and ensuring seamless data flow across the platform. The ideal candidate will have a strong background in REST APIs, webhooks, and data processing while working with cloud infrastructure and DevOps tools.
+
+
+
+About You
+    • 8+ years of professional software engineering experience as a backend engineer.
+    • Proficient in python with experience developing high-performance scalable services.
+    • Extensive experience in the design and development of RESTful API.
+    • Hands-on experience building and integrating webhooks.
+    • Significant knowledge of cloud platforms, AWS, GCP and Azure. 
+    • Hands-on experience with pipeline and deployment tools, ArgoCD, Kubernetes & docker.
+    • Proficient in the design and development of data pipelines and Experience with JQ.
+    • Experience designing, optimising database & modelling data with postgres and mongodb.
+    • Hands-on experience with automated testing frameworks and general testing principles.
+    • Hand on experience working CI/CD deployment pipeline tools like Github Actions.
+    • Ability to integrate poorly documented third party API.
+
+
+ 
+
+Nice to have
+   • Golang experience for multi-language integration projects.
+   • Cloud infrastructure knowledge, including IaC (Terraform, CloudFormation).
+   • Understanding of DevOps best practices, including CI/CD, observability, and infrastructure automation.
+
+
+What the job involves
+    • Build and manage integrations between Port’s Internal Developer Platform (IDP) and third-party DevOps tools, cloud platforms, and infrastructure services.
+    • Design, implement, and maintain RESTful APIs and webhook-based integrations for seamless data exchange.
+    • Build scalable and high-performance backend solutions that can handle large amounts of infrastructure data.
+    • Work with AWS, GCP, Azure, and DevOps tools like Kubernetes, ArgoCD, and Docker to ensure integrations align with cloud-native best practices.
+    • Quickly understand and implement integrations based on third-party API documentation and specifications.
+    • Work with PostgreSQL and MongoDB to store and manage integration data efficiently.
+    • Use testing frameworks to ensure integration reliability, maintainability, and adherence to best coding practices.
+    • Work closely with the DevOps, platform engineering, and product teams to define integration needs and maintain comprehensive technical documentation.
+    • Stay updated on new DevOps tools, infrastructure trends, and best practices to improve Port’s platform capabilities.
+
+
+
+
+
+
+Client Expectations
+    • Ability to analyze complex integration challenges and develop efficient, scalable solutions.
+    • Takes full responsibility for their work, considering the entire lifecycle of code from development to deployment and maintenance.
+    • Clearly articulates technical concepts, collaborates effectively with cross-functional teams, and documents solutions thoroughly.
+    • Ensures accuracy in integrations, data handling, and system interactions, preventing errors and inconsistencies.
+    • Thrives in a dynamic environment where priorities and requirements evolve rapidly.
+    • Works well with developers, DevOps engineers, and product teams to align integration efforts with business objectives.
+    • Considers maintainability, scalability, and long-term impact of written code, ensuring clean and efficient solutions.
+.   • Efficiently understands and applies integration requirements from various platforms.
+    • Balances multiple tasks and deadlines effectively while maintaining high-quality deliverables.
+    • Enthusiastic about improving processes, reducing manual effort, and streamlining workflows with automation.
+
+
+
+More About the Company
+Innovative Technology: Port is at the forefront of platform engineering, providing an internal developer portal that enhances developer experience and productivity. This portal integrates all tools and workflows needed for the software development lifecycle, ensuring developers can manage everything from a single interface.
+
+Growth Opportunities: Port has seen incredible growth, expanding its user base eightfold in the past year. It is trusted by Fortune 500 companies like GitHub, LG, and British Telecom, showcasing its reliability and effectiveness.
+
+
+Empowering Developer Autonomy: Port’s platform allows developers to perform complex tasks with ease, such as spinning up new microservices with best practices built-in. This autonomy not only boosts productivity but also ensures compliance with company policies.
+
+
+
+    
+  
+
+
+
+
+

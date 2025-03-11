@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import re
 
 def parse_job_description(jd_text):
     """Parse job description text into structured format"""
@@ -15,6 +16,7 @@ def parse_job_description(jd_text):
         }
 
         current_section = None
+        in_requirements = False
 
         for line in lines:
             line = line.strip()
@@ -23,36 +25,60 @@ def parse_job_description(jd_text):
 
             lower_line = line.lower()
 
-            # Role detection
-            if 'role:' in lower_line or 'position:' in lower_line or 'job title:' in lower_line:
-                job_requirements['role'] = line.split(':', 1)[1].strip()
-                st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
-
-            # Skills section detection
-            elif any(keyword in lower_line for keyword in ['required skills:', 'technical skills:', 'key skills:']):
-                current_section = 'skills'
-                st.sidebar.info("✅ Processing Skills Section")
+            # Role detection - look for specific sections
+            if 'about the role' in lower_line:
+                in_requirements = True
+                continue
+            elif any(x in lower_line for x in ['about you', 'requirements:', 'qualifications:']):
+                in_requirements = True
+                continue
+            elif lower_line.endswith('role') or lower_line.endswith('position'):
+                next_line_idx = lines.index(line) + 1
+                if next_line_idx < len(lines):
+                    job_requirements['role'] = lines[next_line_idx].strip()
+                    st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
 
             # Experience detection
-            elif any(keyword in lower_line for keyword in ['experience:', 'years of experience:', 'work experience:']):
-                # Extract years using various formats
-                numbers = ''.join(filter(str.isdigit, line))
-                if numbers:
-                    job_requirements['required_years'] = int(numbers)
-                    st.sidebar.info(f"✅ Required Experience: {job_requirements['required_years']} years")
+            if in_requirements:
+                # Look for years of experience patterns
+                year_patterns = [
+                    r'(\d+)\+?\s*(?:years?|yrs?)',
+                    r'(\d+)\s*\+\s*years?',
+                    r'minimum\s*(?:of\s*)?(\d+)\s*years?'
+                ]
 
-            # Certifications section detection
-            elif any(keyword in lower_line for keyword in ['certifications:', 'certificates:', 'required certifications:']):
-                current_section = 'certifications'
-                st.sidebar.info("✅ Processing Certifications Section")
+                for pattern in year_patterns:
+                    match = re.search(pattern, lower_line, re.IGNORECASE)
+                    if match:
+                        years = int(match.group(1))
+                        if years > job_requirements['required_years']:
+                            job_requirements['required_years'] = years
+                            st.sidebar.info(f"✅ Required Experience: {years} years")
 
-            # Process list items in current section
-            elif line.startswith(('-', '•', '*', '→')):
-                item = line.lstrip('- •*→').strip()
-                if current_section == 'skills' and item:
-                    job_requirements['required_skills'].append(item)
-                elif current_section == 'certifications' and item:
-                    job_requirements['required_certifications'].append(item)
+                # Skills detection from bullet points
+                if line.startswith(('•', '-', '*', '→')):
+                    skill_line = line.lstrip('•-*→ \t').strip()
+                    # Check if it's a skill-related bullet point
+                    if any(tech_word in skill_line.lower() for tech_word in [
+                        'experience', 'proficient', 'knowledge', 'understanding',
+                        'expertise', 'skill', 'hands-on', 'background'
+                    ]):
+                        # Extract the actual skill
+                        skill = skill_line.split('in')[-1].strip() if 'in' in skill_line else skill_line
+                        job_requirements['required_skills'].append(skill)
+
+        # Additional processing for skills
+        # Clean up skills that might have trailing punctuation or common phrases
+        cleaned_skills = []
+        for skill in job_requirements['required_skills']:
+            # Remove common phrases and clean up
+            skill = re.sub(r'\(.*?\)', '', skill)  # Remove parentheses and their contents
+            skill = re.sub(r'[.,].*$', '', skill)  # Remove everything after period or comma
+            skill = skill.strip()
+            if skill and len(skill) > 2:  # Only add non-empty skills
+                cleaned_skills.append(skill)
+
+        job_requirements['required_skills'] = cleaned_skills
 
         # Validation and feedback
         if not job_requirements['role']:
@@ -61,6 +87,12 @@ def parse_job_description(jd_text):
             st.sidebar.warning("⚠️ No required skills detected")
         if not job_requirements['required_years']:
             st.sidebar.warning("⚠️ No years of experience requirement detected")
+
+        # Show parsed skills
+        if job_requirements['required_skills']:
+            st.sidebar.info("✅ Detected Skills:")
+            for skill in job_requirements['required_skills']:
+                st.sidebar.markdown(f"• {skill}")
 
         return job_requirements
 
