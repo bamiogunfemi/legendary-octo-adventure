@@ -23,8 +23,8 @@ class ScoringEngine:
             print(f"Error in core alignment check: {str(e)}")
             return 0
 
-    def score_skills_match(self, candidate_skills, required_skills):
-        """Score skills match using advanced NLP"""
+    def score_skills_match(self, candidate_skills, required_skills, nice_to_have_skills=None):
+        """Score skills match using advanced NLP with bonus for nice-to-have skills"""
         try:
             if not candidate_skills or not required_skills:
                 return 0, "No skills provided"
@@ -32,24 +32,38 @@ class ScoringEngine:
             # Clean and normalize skills
             candidate_skills = [s.strip() for s in candidate_skills if s.strip()]
             required_skills = [s.strip() for s in required_skills if s.strip()]
+            nice_to_have_skills = [s.strip() for s in (nice_to_have_skills or [])] if nice_to_have_skills else []
 
             if not required_skills:
                 return 50, "No required skills specified"
 
-            # Get advanced NLP match score
+            # Get required skills match score
             match_score, matched_skills = self.nlp_matcher.match_skills(
                 candidate_skills,
                 required_skills
             )
 
+            # Calculate bonus points for nice-to-have skills (up to 20% bonus)
+            bonus_score = 0
+            if nice_to_have_skills:
+                _, nice_to_have_matches = self.nlp_matcher.match_skills(
+                    candidate_skills,
+                    nice_to_have_skills
+                )
+                # Each nice-to-have skill adds up to 5 points (max 20)
+                bonus_score = min(len(nice_to_have_matches) * 5, 20)
+
+            # Apply bonus score
+            final_score = min(match_score + bonus_score, 100)
+
             # Generate detailed feedback
-            if match_score >= 80:
-                return match_score, "Strong match with required skills"
-            elif match_score >= 60:
-                return match_score, f"Partial match with {len(matched_skills)} out of {len(required_skills)} required skills"
+            if final_score >= 80:
+                return final_score, "Strong match with required skills"
+            elif final_score >= 60:
+                return final_score, f"Partial match with {len(matched_skills)} out of {len(required_skills)} required skills"
             else:
                 missing_skills = set(required_skills) - {m['matched'] for m in matched_skills}
-                return match_score, f"Missing key skills: {', '.join(missing_skills)}"
+                return final_score, f"Missing key skills: {', '.join(missing_skills)}"
 
         except Exception as e:
             print(f"Error in skills match: {str(e)}")
@@ -86,7 +100,8 @@ class ScoringEngine:
             # Skills evaluation with advanced NLP
             skills_score, skills_reason = self.score_skills_match(
                 cv_data.get('skills', []),
-                job_requirements.get('required_skills', [])
+                job_requirements.get('required_skills', []),
+                job_requirements.get('nice_to_have_skills', [])
             )
             if skills_score < 50:
                 reasons.append(f"Skills: {skills_reason}")

@@ -33,12 +33,14 @@ def parse_job_description(jd_text, custom_years=None):
         job_requirements = {
             'role': '',
             'required_skills': [],
+            'nice_to_have_skills': [],
             'required_years': custom_years if custom_years is not None else 0
         }
 
         current_section = None
         in_requirements = False
         skills_section = False
+        nice_to_have_section = False
 
         for line in lines:
             line = line.strip()
@@ -61,18 +63,24 @@ def parse_job_description(jd_text, custom_years=None):
             if any(section in lower_line for section in ['about you', 'requirements', 'skills needed', 'technical skills']):
                 in_requirements = True
                 skills_section = True
+                nice_to_have_section = False
                 continue
 
             if 'nice to have' in lower_line:
                 skills_section = False
+                nice_to_have_section = True
                 continue
 
             # Skills detection from bullet points or lists
             if line.startswith(('•', '-', '*', '→')):
                 skill_line = line.lstrip('•-*→ \t').strip()
-                if skills_section:  # Only process if in required skills section
+
+                if skills_section:  # Required skills section
                     extracted_skills = extract_skills_from_text(skill_line)
                     job_requirements['required_skills'].extend(extracted_skills)
+                elif nice_to_have_section:  # Nice to have skills section
+                    extracted_skills = extract_skills_from_text(skill_line)
+                    job_requirements['nice_to_have_skills'].extend(extracted_skills)
 
         # Handle simple list format
         if not job_requirements['required_skills']:
@@ -87,6 +95,7 @@ def parse_job_description(jd_text, custom_years=None):
 
         # Remove duplicates while preserving order
         job_requirements['required_skills'] = list(dict.fromkeys(job_requirements['required_skills']))
+        job_requirements['nice_to_have_skills'] = list(dict.fromkeys(job_requirements['nice_to_have_skills']))
 
         # Default to "Backend Integration Engineer" if no role detected
         if not job_requirements['role'] and "backend integration engineer" in jd_text.lower():
@@ -95,8 +104,13 @@ def parse_job_description(jd_text, custom_years=None):
 
         # Show parsed skills
         if job_requirements['required_skills']:
-            st.sidebar.info("✅ Detected Required Skills:")
+            st.sidebar.info("✅ Required Skills:")
             for skill in job_requirements['required_skills']:
+                st.sidebar.markdown(f"• {skill}")
+
+        if job_requirements['nice_to_have_skills']:
+            st.sidebar.info("✅ Nice to Have Skills:")
+            for skill in job_requirements['nice_to_have_skills']:
                 st.sidebar.markdown(f"• {skill}")
 
         return job_requirements
@@ -106,6 +120,7 @@ def parse_job_description(jd_text, custom_years=None):
         return {
             'role': '',
             'required_skills': [],
+            'nice_to_have_skills': [],
             'required_years': custom_years if custom_years is not None else 0
         }
 
