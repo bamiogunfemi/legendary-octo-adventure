@@ -8,9 +8,37 @@ import requests
 from docx import Document
 import mimetypes
 
+def get_google_drive_file_url(url):
+    """Convert Google Drive share URL to direct download URL"""
+    try:
+        # Extract file ID from various Google Drive URL formats
+        file_id = None
+        if 'open?id=' in url:
+            file_id = url.split('open?id=')[1].split('&')[0]
+        elif '/file/d/' in url:
+            file_id = url.split('/file/d/')[1].split('/')[0]
+        elif 'id=' in url:
+            file_id = url.split('id=')[1].split('&')[0]
+
+        if not file_id:
+            return None
+
+        # Return the direct download URL
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    except Exception as e:
+        st.warning(f"Error processing Google Drive URL: {str(e)}")
+        return None
+
 def parse_document_for_experience(cv_url):
     """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
+        # Check if it's a Google Drive URL and get direct download link
+        if 'drive.google.com' in cv_url:
+            cv_url = get_google_drive_file_url(cv_url)
+            if not cv_url:
+                st.warning("Could not process Google Drive URL")
+                return None
+
         # Download file with redirects
         response = requests.get(cv_url, allow_redirects=True, verify=False)
         if response.status_code != 200:
