@@ -34,8 +34,26 @@ def main():
         help="Enter the role title"
     )
 
+    # Default job description
+    default_jd = """About You
+    • python
+    • RESTful API.
+    • webhooks.
+    • AWS, GCP and Azure. 
+    • ArgoCD, Kubernetes & docker.
+    • postgres and mongodb.
+    • testing 
+    • Github Actions.
+
+
+Nice to have
+   • Golang 
+   • including IaC (Terraform, CloudFormation).
+    """
+
     jd_text = st.sidebar.text_area(
         "Enter Job Description",
+        value=default_jd,
         height=300,
         help="Enter the complete job description including required skills and experience"
     )
@@ -53,6 +71,7 @@ def main():
     st.sidebar.header("CV Source")
     sheet_id = st.sidebar.text_input(
         "Google Sheet ID",
+        value="1IkWvsHfGW1iylm58LpYeWhsUDf30Mld5pF7WkpWlWxM",
         help="Enter the ID from the Google Sheet URL"
     )
     sheet_range = st.sidebar.text_input(

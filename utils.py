@@ -13,7 +13,12 @@ def get_google_drive_file_url(url):
     try:
         # Extract file ID from various Google Drive URL formats
         file_id = None
-        if 'open?id=' in url:
+
+        # Handle direct export URLs first
+        if 'uc?export=download&id=' in url:
+            file_id = url.split('id=')[1].split('&')[0]
+        # Handle web viewer URLs
+        elif 'open?id=' in url:
             file_id = url.split('open?id=')[1].split('&')[0]
         elif '/file/d/' in url:
             file_id = url.split('/file/d/')[1].split('/')[0]
@@ -21,10 +26,11 @@ def get_google_drive_file_url(url):
             file_id = url.split('id=')[1].split('&')[0]
 
         if not file_id:
+            st.warning(f"Could not extract file ID from URL: {url}")
             return None
 
-        # Return the direct download URL
-        return f"https://drive.google.com/uc?export=download&id={file_id}"
+        # Return the direct download URL with confirmation bypass
+        return f"https://drive.google.com/uc?export=download&confirm=yes&id={file_id}"
     except Exception as e:
         st.warning(f"Error processing Google Drive URL: {str(e)}")
         return None
@@ -39,24 +45,32 @@ def parse_document_for_experience(cv_url):
                 st.warning("Could not process Google Drive URL")
                 return None
 
-        # Download file with redirects
-        response = requests.get(cv_url, allow_redirects=True, verify=False)
+        # Download file with redirects and verify=False for Google Drive
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(cv_url, headers=headers, allow_redirects=True, verify=False)
+
         if response.status_code != 200:
             st.warning(f"Could not download file from URL: {cv_url}")
             return None
 
         # Get filename from content-disposition header or URL
+        filename = None
         content_disp = response.headers.get('content-disposition')
         if content_disp:
-            fname = re.findall("filename=(.+)", content_disp)[0]
-        else:
-            fname = cv_url.split('/')[-1]
+            filename_match = re.findall("filename=(.+)", content_disp)
+            if filename_match:
+                filename = filename_match[0].strip('"\'')
+
+        if not filename:
+            filename = cv_url.split('/')[-1].split('?')[0]  # Remove query parameters
 
         # Determine file type from filename or content
         file_type = None
-        if fname.lower().endswith('.pdf'):
+        if filename.lower().endswith('.pdf'):
             file_type = 'pdf'
-        elif fname.lower().endswith(('.doc', '.docx')):
+        elif filename.lower().endswith(('.doc', '.docx')):
             file_type = 'doc'
         else:
             # Try to determine from content
@@ -65,9 +79,14 @@ def parse_document_for_experience(cv_url):
                 file_type = 'pdf'
             elif 'word' in content_type or 'msword' in content_type:
                 file_type = 'doc'
+            elif 'application/octet-stream' in content_type:
+                # Try to guess from the content
+                if response.content.startswith(b'%PDF'):
+                    file_type = 'pdf'
 
         if not file_type:
-            st.warning(f"Could not determine file type for: {fname}")
+            st.warning(f"Could not determine file type for: {filename}")
+            st.info("Content-Type received: " + response.headers.get('content-type', 'None'))
             return None
 
         # Extract text based on file type
@@ -90,7 +109,6 @@ def parse_document_for_experience(cv_url):
             st.warning("No text content found in the document")
             return None
 
-        # Look for experience section and dates
         experience_patterns = [
             r"(?:Experience|Work History|Employment|Career History)",
             r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
