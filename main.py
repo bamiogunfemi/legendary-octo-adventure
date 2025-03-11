@@ -54,29 +54,45 @@ def main():
                 # Process each CV
                 results = []
                 for _, row in cv_data.iterrows():
-                    cv_dict = row.to_dict()
-
-                    # Safely convert skills and certifications to lists
-                    skills = cv_dict.get('skills', '')
-                    certifications = cv_dict.get('certifications', '')
-
-                    cv_dict['skills'] = [s.strip() for s in str(skills).split(',') if s.strip()] if skills else []
-                    cv_dict['certifications'] = [c.strip() for c in str(certifications).split(',') if c.strip()] if certifications else []
-
-                    # Add basic info first
-                    evaluation = {
-                        'name': str(row.get('name', '')),
-                        'email': str(row.get('email', '')),
-                        'current_role': str(row.get('current_role', ''))
+                    # Create CV dictionary with basic info
+                    cv_dict = {
+                        'name': str(row.get('Name', row.get('name', ''))).strip(),
+                        'email': str(row.get('Email', row.get('email', ''))).strip(),
+                        'current_role': str(row.get('Current Role', row.get('current_role', ''))).strip(),
+                        'years_experience': str(row.get('Years of Experience', row.get('years_experience', 0))).strip(),
+                        'skills': [],
+                        'certifications': []
                     }
+
+                    # Process skills
+                    skills = row.get('Skills', row.get('skills', ''))
+                    if isinstance(skills, str) and skills.strip():
+                        cv_dict['skills'] = [s.strip() for s in skills.split(',') if s.strip()]
+
+                    # Process certifications
+                    certifications = row.get('Certifications', row.get('certifications', ''))
+                    if isinstance(certifications, str) and certifications.strip():
+                        cv_dict['certifications'] = [c.strip() for c in certifications.split(',') if c.strip()]
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
-                    evaluation.update(result)
 
-                    # Format reasons if present
-                    if 'reasons' in result:
+                    # Combine basic info with evaluation results
+                    evaluation = {
+                        'name': cv_dict['name'],
+                        'email': cv_dict['email'],
+                        'current_role': cv_dict['current_role'],
+                        'overall_score': result['overall_score'],
+                        'skills_score': result['skills_score'],
+                        'experience_score': result['experience_score'],
+                        'alignment_score': result['alignment_score']
+                    }
+
+                    # Add reasons for not suitable candidates
+                    if 'reasons' in result and result['reasons']:
                         evaluation['reasons_not_suitable'] = '\n'.join(result['reasons'])
+                    else:
+                        evaluation['reasons_not_suitable'] = ''
 
                     results.append(evaluation)
 
