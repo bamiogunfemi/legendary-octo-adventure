@@ -11,34 +11,55 @@ import mimetypes
 def parse_document_for_experience(cv_url):
     """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
-        # Download file
-        response = requests.get(cv_url)
+        # Download file with redirects
+        response = requests.get(cv_url, allow_redirects=True, verify=False)
         if response.status_code != 200:
             st.warning(f"Could not download file from URL: {cv_url}")
             return None
 
-        # Get content type
-        content_type = response.headers.get('content-type', '')
-        file_content = io.BytesIO(response.content)
+        # Get filename from content-disposition header or URL
+        content_disp = response.headers.get('content-disposition')
+        if content_disp:
+            fname = re.findall("filename=(.+)", content_disp)[0]
+        else:
+            fname = cv_url.split('/')[-1]
+
+        # Determine file type from filename or content
+        file_type = None
+        if fname.lower().endswith('.pdf'):
+            file_type = 'pdf'
+        elif fname.lower().endswith(('.doc', '.docx')):
+            file_type = 'doc'
+        else:
+            # Try to determine from content
+            content_type = response.headers.get('content-type', '').lower()
+            if 'pdf' in content_type:
+                file_type = 'pdf'
+            elif 'word' in content_type or 'msword' in content_type:
+                file_type = 'doc'
+
+        if not file_type:
+            st.warning(f"Could not determine file type for: {fname}")
+            return None
 
         # Extract text based on file type
+        file_content = io.BytesIO(response.content)
         text = ""
         try:
-            if 'pdf' in content_type.lower():
-                # Parse PDF
+            if file_type == 'pdf':
                 pdf_reader = PdfReader(file_content)
                 for page in pdf_reader.pages:
                     text += page.extract_text()
-            elif 'word' in content_type.lower() or cv_url.lower().endswith(('.doc', '.docx')):
-                # Parse DOC/DOCX
+            elif file_type == 'doc':
                 doc = Document(file_content)
                 for para in doc.paragraphs:
                     text += para.text + '\n'
-            else:
-                st.warning(f"Unsupported file type: {content_type}")
-                return None
         except Exception as e:
-            st.warning(f"Error parsing file: {str(e)}")
+            st.warning(f"Error parsing {file_type.upper()} file: {str(e)}")
+            return None
+
+        if not text.strip():
+            st.warning("No text content found in the document")
             return None
 
         # Look for experience section and dates
@@ -85,7 +106,7 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
     """Calculate years of experience from CV or start date"""
     try:
         # Try to get start date from CV first
-        if cv_url:
+        if cv_url and cv_url.strip():
             start_date = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
