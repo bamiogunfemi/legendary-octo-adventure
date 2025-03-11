@@ -7,6 +7,7 @@ import io
 import requests
 from docx import Document
 import mimetypes
+import os
 
 def get_google_drive_file_url(url):
     """Convert Google Drive share URL to direct download URL"""
@@ -29,8 +30,8 @@ def get_google_drive_file_url(url):
             st.warning(f"Could not extract file ID from URL: {url}")
             return None
 
-        # Return download URL with additional parameters
-        return f"https://drive.google.com/u/0/uc?id={file_id}&export=download&confirm=t&uuid=123"
+        # Return direct view URL instead of download URL
+        return f"https://drive.google.com/file/d/{file_id}/view"
     except Exception as e:
         st.warning(f"Error processing Google Drive URL: {str(e)}")
         return None
@@ -38,58 +39,61 @@ def get_google_drive_file_url(url):
 def parse_document_for_experience(cv_url):
     """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
-        # Check if it's a Google Drive URL and get direct download link
+        # Check if it's a Google Drive URL
         if 'drive.google.com' in cv_url:
-            cv_url = get_google_drive_file_url(cv_url)
-            if not cv_url:
-                st.warning("Could not process Google Drive URL")
-                return None
-
-        # Custom headers for Google Drive
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Cookie': ''
-        }
-
-        # First request to get the warning page
-        session = requests.Session()
-        response = session.get(cv_url, headers=headers, verify=False)
-
-        if 'Content-Disposition' in response.headers:
-            content = response.content
-        else:
-            # If we got the warning page, look for the download link
-            confirm_token = None
-            for line in response.text.split('\n'):
-                if 'confirm=' in line:
-                    confirm_token = line.split('confirm=')[1].split('&')[0]
-                    break
-
-            if confirm_token:
-                # Make second request with confirmation token
-                confirmed_url = f"{cv_url}&confirm={confirm_token}"
-                response = session.get(confirmed_url, headers=headers, verify=False)
-                content = response.content
+            # Extract file ID
+            if '/file/d/' in cv_url:
+                file_id = cv_url.split('/file/d/')[1].split('/')[0]
             else:
-                content = response.content
+                file_id = cv_url.split('id=')[1].split('&')[0]
 
-        # Determine file type from content
+            # Use the direct download API endpoint
+            download_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+
+            # Set up headers with authorization if available
+            headers = {
+                'Authorization': f'Bearer {os.getenv("GOOGLE_ACCESS_TOKEN")}',
+                'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            }
+        else:
+            download_url = cv_url
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            }
+
+        # Download file
+        response = requests.get(download_url, headers=headers, verify=False)
+
+        if response.status_code != 200:
+            st.warning(f"Failed to download file: Status {response.status_code}")
+            return None
+
+        # Check content type and file signatures
+        content = response.content
         file_type = None
+
+        # Check file signatures
         if content.startswith(b'%PDF'):
             file_type = 'pdf'
         elif content.startswith(b'PK\x03\x04'):  # docx file signature
             file_type = 'doc'
+        else:
+            content_type = response.headers.get('content-type', '').lower()
+            if 'pdf' in content_type:
+                file_type = 'pdf'
+            elif 'word' in content_type or 'msword' in content_type:
+                file_type = 'doc'
 
         if not file_type:
-            st.warning(f"Could not determine file type from content")
-            st.info(f"File signature: {content[:10]}")
+            st.warning("Unsupported file type")
+            st.info(f"Content-Type: {response.headers.get('content-type')}")
             return None
 
-        # Process the content based on file type
+        # Process the file
         file_content = io.BytesIO(content)
         text = ""
+
         try:
             if file_type == 'pdf':
                 pdf_reader = PdfReader(file_content)
