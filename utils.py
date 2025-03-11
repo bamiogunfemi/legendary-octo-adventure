@@ -5,23 +5,41 @@ from PyPDF2 import PdfReader
 from datetime import datetime
 import io
 import requests
+from docx import Document
+import mimetypes
 
-def parse_pdf_for_experience(cv_url):
-    """Parse PDF CV to extract first non-freelance experience date"""
+def parse_document_for_experience(cv_url):
+    """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
-        # Download PDF from URL
+        # Download file
         response = requests.get(cv_url)
         if response.status_code != 200:
+            st.warning(f"Could not download file from URL: {cv_url}")
             return None
 
-        # Read PDF content
-        pdf_file = io.BytesIO(response.content)
-        pdf_reader = PdfReader(pdf_file)
+        # Get content type
+        content_type = response.headers.get('content-type', '')
+        file_content = io.BytesIO(response.content)
 
-        # Extract text from all pages
+        # Extract text based on file type
         text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+        try:
+            if 'pdf' in content_type.lower():
+                # Parse PDF
+                pdf_reader = PdfReader(file_content)
+                for page in pdf_reader.pages:
+                    text += page.extract_text()
+            elif 'word' in content_type.lower() or cv_url.lower().endswith(('.doc', '.docx')):
+                # Parse DOC/DOCX
+                doc = Document(file_content)
+                for para in doc.paragraphs:
+                    text += para.text + '\n'
+            else:
+                st.warning(f"Unsupported file type: {content_type}")
+                return None
+        except Exception as e:
+            st.warning(f"Error parsing file: {str(e)}")
+            return None
 
         # Look for experience section and dates
         experience_patterns = [
@@ -60,7 +78,7 @@ def parse_pdf_for_experience(cv_url):
 
         return None
     except Exception as e:
-        st.error(f"Error parsing PDF: {str(e)}")
+        st.warning(f"Error processing document: {str(e)}")
         return None
 
 def calculate_years_experience(cv_url=None, start_date_str=None):
@@ -68,7 +86,7 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
     try:
         # Try to get start date from CV first
         if cv_url:
-            start_date = parse_pdf_for_experience(cv_url)
+            start_date = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
                 return round(years_exp, 1)
@@ -80,7 +98,8 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
             return round(years_exp, 1)
 
         return 0
-    except:
+    except Exception as e:
+        st.warning(f"Error calculating experience: {str(e)}")
         return 0
 
 def extract_skills_from_text(text):
