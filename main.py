@@ -3,7 +3,18 @@ import pandas as pd
 from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
 from utils import parse_job_description, prepare_export_data
-import json
+from datetime import datetime
+
+def calculate_years_experience(start_date_str):
+    """Calculate years of experience from start date"""
+    try:
+        if not start_date_str or pd.isna(start_date_str):
+            return 0
+        start_date = pd.to_datetime(start_date_str)
+        years_exp = (datetime.now() - start_date).days / 365.25
+        return round(years_exp, 1)
+    except:
+        return 0
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -76,13 +87,13 @@ def main():
                     cv_dict = {
                         'name': f"{str(row.get('FIRST NAME', '')).strip()} {str(row.get('LAST NAME', '')).strip()}",
                         'email': str(row.get('EMAIL', '')).strip(),
-                        'years_experience': str(row.get('Years of Experience', row.get('years_experience', 0))).strip(),
+                        'years_experience': calculate_years_experience(row.get('Experience Start Date', '')),
                         'skills': [],
                         'certifications': []
                     }
 
-                    # Process skills
-                    skills = row.get('Skills', row.get('skills', ''))
+                    # Process skills from dedicated column
+                    skills = row.get('Skills', '')
                     if isinstance(skills, str) and skills.strip():
                         cv_dict['skills'] = [s.strip() for s in skills.split(',') if s.strip()]
 
@@ -98,6 +109,7 @@ def main():
                     evaluation = {
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
+                        'years_experience': cv_dict['years_experience'],
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
@@ -136,6 +148,7 @@ def main():
                     column_config={
                         "name": "Name",
                         "email": "Email",
+                        "years_experience": "Years of Experience",
                         "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
                         "status": "Status",
                         "reasons_not_suitable": st.column_config.TextColumn("Reasons (if not suitable)")

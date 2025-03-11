@@ -116,7 +116,7 @@ def prepare_export_data(results):
 
     # Reorder columns to show candidate info first
     columns_order = [
-        'name', 'email',
+        'name', 'email', 'years_experience',
         'overall_score', 'status',
         'skills_score', 'experience_score', 
         'alignment_score', 'reasons_not_suitable'
