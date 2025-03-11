@@ -108,11 +108,11 @@ Nice to have
                     progress = (index + 1) / len(cv_data)
                     progress_bar.progress(progress)
 
-                    cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
                     cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
+                    cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
                     st.write(f"Processing CV {index + 1}: {cv_name}")
 
-                    # Calculate years of experience
+                    # Calculate years of experience and get first line
                     years_exp, first_line, exp_error = calculate_years_experience(
                         cv_url=cv_link,
                         start_date_str=row.get('Experience Start Date', '')
@@ -126,7 +126,7 @@ Nice to have
                         'name': cv_name,
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
-                        'first_line': first_line if first_line else '',  # Add first line
+                        'first_line': first_line,
                         'years_experience': years_exp,
                         'skills': []
                     }
@@ -139,7 +139,7 @@ Nice to have
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
-                        'first_line': cv_dict['first_line'],  # Add first line
+                        'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
                         'required_skills': ', '.join(result.get('matched_required_skills', [])),
                         'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
@@ -187,22 +187,21 @@ Nice to have
                     error_count = len(results_df[results_df['document_errors'].notna() & (results_df['document_errors'] != '')])
                     st.metric("CVs with Errors", error_count)
 
-                # Detailed results table
-                st.write("### Detailed Results")
-
                 # Style the dataframe
                 def highlight_top_5(row):
                     return ['background-color: #90EE90' if row['is_top_5'] else '' for _ in row]
 
                 styled_df = results_df.style.apply(highlight_top_5, axis=1)
 
+                # Detailed results table
+                st.write("### Detailed Results")
                 st.dataframe(
                     styled_df,
                     column_config={
                         "name": "Name",
                         "email": "Email",
                         "cv_link": st.column_config.LinkColumn("CV Link"),
-                        "first_line": st.column_config.TextColumn(  # Add first line column
+                        "first_line": st.column_config.TextColumn(
                             "First Line of CV",
                             help="First line extracted from the CV document"
                         ),
