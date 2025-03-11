@@ -54,8 +54,7 @@ def parse_document_for_experience(cv_url):
             # Use the direct download API endpoint
             creds_json = os.getenv('GOOGLE_CREDENTIALS')
             if not creds_json:
-                st.warning("Google credentials not found in environment variables")
-                return None
+                return None, "Google credentials not found"
 
             try:
                 creds_dict = json.loads(creds_json)
@@ -75,11 +74,9 @@ def parse_document_for_experience(cv_url):
                 content = file_buffer.read()
 
             except json.JSONDecodeError:
-                st.warning("Invalid JSON format in Google credentials")
-                return None
+                return None, "Invalid Google credentials format"
             except Exception as e:
-                st.warning(f"Error accessing Google Drive: {str(e)}")
-                return None
+                return None, f"Google Drive access error: {str(e)}"
 
         else:
             # For non-Google Drive URLs
@@ -87,11 +84,13 @@ def parse_document_for_experience(cv_url):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             }
-            response = requests.get(cv_url, headers=headers, verify=False)
-            if response.status_code != 200:
-                st.warning(f"Failed to download file: Status {response.status_code}")
-                return None
-            content = response.content
+            try:
+                response = requests.get(cv_url, headers=headers, verify=False)
+                if response.status_code != 200:
+                    return None, f"Failed to download file (Status {response.status_code})"
+                content = response.content
+            except Exception as e:
+                return None, f"Download error: {str(e)}"
 
         # Check file signatures
         file_type = None
@@ -107,8 +106,7 @@ def parse_document_for_experience(cv_url):
                 file_type = 'doc'
 
         if not file_type:
-            st.warning("Unsupported file type")
-            return None
+            return None, "Unsupported file format"
 
         # Process the file
         file_content = io.BytesIO(content)
@@ -124,12 +122,10 @@ def parse_document_for_experience(cv_url):
                 for para in doc.paragraphs:
                     text += para.text + '\n'
         except Exception as e:
-            st.warning(f"Error parsing {file_type.upper()} file: {str(e)}")
-            return None
+            return None, f"Error parsing {file_type.upper()} file: {str(e)}"
 
         if not text.strip():
-            st.warning("No text content found in the document")
-            return None
+            return None, "No text content found in document"
 
         # Look for experience section and dates
         experience_patterns = [
@@ -160,37 +156,40 @@ def parse_document_for_experience(cv_url):
                         # Convert to datetime
                         try:
                             if '/' in date_str:
-                                return datetime.strptime(date_str, '%m/%Y')
+                                return datetime.strptime(date_str, '%m/%Y'), None
                             else:
-                                return datetime.strptime(date_str, '%Y')
+                                return datetime.strptime(date_str, '%Y'), None
                         except ValueError:
                             continue
 
-        return None
+        return None, "No valid experience dates found"
     except Exception as e:
-        st.warning(f"Error processing document: {str(e)}")
-        return None
+        return None, f"Error processing document: {str(e)}"
 
 def calculate_years_experience(cv_url=None, start_date_str=None):
     """Calculate years of experience from CV or start date"""
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            start_date = parse_document_for_experience(cv_url)
+            start_date, error = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1)
+                return round(years_exp, 1), None
+            elif error:
+                return 0, error
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
-            start_date = pd.to_datetime(start_date_str)
-            years_exp = (datetime.now() - start_date).days / 365.25
-            return round(years_exp, 1)
+            try:
+                start_date = pd.to_datetime(start_date_str)
+                years_exp = (datetime.now() - start_date).days / 365.25
+                return round(years_exp, 1), None
+            except Exception as e:
+                return 0, f"Invalid date format: {str(e)}"
 
-        return 0
+        return 0, "No experience date provided"
     except Exception as e:
-        st.warning(f"Error calculating experience: {str(e)}")
-        return 0
+        return 0, f"Error calculating experience: {str(e)}"
 
 def extract_skills_from_text(text):
     """Extract actual skills from descriptive text"""
@@ -324,7 +323,7 @@ def prepare_export_data(results):
         'name', 'email', 'cv_link', 'years_experience', 'skills',
         'overall_score', 'status',
         'skills_score', 'experience_score',
-        'alignment_score', 'reasons_not_suitable'
+        'alignment_score', 'reasons_not_suitable', 'document_errors'
     ]
 
     # Create status column
@@ -338,12 +337,16 @@ def prepare_export_data(results):
     if 'reasons_not_suitable' in export_df.columns:
         export_df.loc[export_df['status'] != 'Not Suitable', 'reasons_not_suitable'] = ''
 
+    # Add a column for document parsing errors
+    export_df['document_errors'] = ''
+
     # Reorder columns and fill any missing columns with empty strings
     for col in columns_order:
         if col not in export_df.columns:
             export_df[col] = ''
 
     #Update years_experience column using new function
-    export_df['years_experience'] = export_df['cv_link'].apply(calculate_years_experience)
+    export_df['years_experience'], export_df['document_errors'] = zip(*export_df['cv_link'].apply(lambda x: calculate_years_experience(x)))
+
 
     return export_df[columns_order]

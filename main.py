@@ -9,12 +9,12 @@ def calculate_years_experience(cv_url, start_date_str):
     """Calculate years of experience from start date"""
     try:
         if not start_date_str or pd.isna(start_date_str):
-            return 0
+            return 0, ""
         start_date = pd.to_datetime(start_date_str)
         years_exp = (datetime.now() - start_date).days / 365.25
-        return round(years_exp, 1)
-    except:
-        return 0
+        return round(years_exp, 1), ""
+    except Exception as e:
+        return 0, str(e)
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -105,15 +105,18 @@ Nice to have
                     # Get CV link first
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
 
+                    # Calculate years of experience with error handling
+                    years_exp, exp_error = calculate_years_experience(
+                        cv_url=cv_link,
+                        start_date_str=row.get('Experience Start Date', '')
+                    )
+
                     # Create CV dictionary with basic info
                     cv_dict = {
                         'name': f"{str(row.get('FIRST NAME', '')).strip()} {str(row.get('LAST NAME', '')).strip()}",
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
-                        'years_experience': calculate_years_experience(
-                            cv_url=cv_link,
-                            start_date_str=row.get('Experience Start Date', '')
-                        ),
+                        'years_experience': years_exp,
                         'skills': []
                     }
 
@@ -130,19 +133,23 @@ Nice to have
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
-                        'years_experience': cv_dict['years_experience'],
+                        'years_experience': years_exp,
                         'skills': ', '.join(cv_dict['skills']),
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
-                        'alignment_score': result['alignment_score']
+                        'alignment_score': result['alignment_score'],
+                        'cv_processing_error': exp_error if exp_error else ''
                     }
 
                     # Add reasons for not suitable candidates
+                    reasons = []
+                    if exp_error:
+                        reasons.append(f"CV Processing: {exp_error}")
                     if result['reasons']:
-                        evaluation['reasons_not_suitable'] = '\n'.join(result['reasons'])
-                    else:
-                        evaluation['reasons_not_suitable'] = ''
+                        reasons.extend(result['reasons'])
+
+                    evaluation['reasons_not_suitable'] = '\n'.join(reasons) if reasons else ''
 
                     results.append(evaluation)
 
@@ -153,7 +160,7 @@ Nice to have
                 st.header("Evaluation Results")
 
                 # Summary metrics
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.metric("Total CVs Processed", len(results))
                 with col2:
@@ -162,6 +169,9 @@ Nice to have
                 with col3:
                     avg_score = results_df['overall_score'].mean()
                     st.metric("Average Score", f"{avg_score:.2f}")
+                with col4:
+                    error_count = len(results_df[results_df['cv_processing_error'].notna() & (results_df['cv_processing_error'] != '')])
+                    st.metric("CVs with Errors", error_count)
 
                 # Detailed results table
                 st.write("### Detailed Results")
@@ -175,7 +185,8 @@ Nice to have
                         "skills": "Skills",
                         "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
                         "status": "Status",
-                        "reasons_not_suitable": st.column_config.TextColumn("Reasons (if not suitable)")
+                        "cv_processing_error": "CV Processing Issues",
+                        "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons")
                     }
                 )
 
