@@ -337,16 +337,14 @@ def prepare_export_data(results):
     if 'reasons_not_suitable' in export_df.columns:
         export_df.loc[export_df['status'] != 'Not Suitable', 'reasons_not_suitable'] = ''
 
-    # Add a column for document parsing errors
-    export_df['document_errors'] = ''
+    # Add a column for document parsing errors if not present
+    if 'document_errors' not in export_df.columns:
+        export_df['document_errors'] = ''
 
     # Reorder columns and fill any missing columns with empty strings
     for col in columns_order:
         if col not in export_df.columns:
             export_df[col] = ''
 
-    #Update years_experience column using new function
-    export_df['years_experience'], export_df['document_errors'] = zip(*export_df['cv_link'].apply(lambda x: calculate_years_experience(x)))
-
-
+    # Ensure all columns are present and in the right order
     return export_df[columns_order]

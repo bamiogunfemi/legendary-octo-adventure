@@ -148,7 +148,7 @@ Nice to have
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
                         'alignment_score': result['alignment_score'],
-                        'cv_processing_error': exp_error if exp_error else ''
+                        'document_errors': exp_error if exp_error else ''
                     }
 
                     # Add reasons for not suitable candidates
@@ -182,7 +182,7 @@ Nice to have
                     avg_score = results_df['overall_score'].mean()
                     st.metric("Average Score", f"{avg_score:.2f}")
                 with col4:
-                    error_count = len(results_df[results_df['cv_processing_error'].notna() & (results_df['cv_processing_error'] != '')])
+                    error_count = len(results_df[results_df['document_errors'].notna() & (results_df['document_errors'] != '')])
                     st.metric("CVs with Errors", error_count)
 
                 # Detailed results table
@@ -197,7 +197,7 @@ Nice to have
                         "skills": "Skills",
                         "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
                         "status": "Status",
-                        "cv_processing_error": "CV Processing Issues",
+                        "document_errors": "CV Processing Issues",
                         "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons")
                     }
                 )
