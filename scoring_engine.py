@@ -137,7 +137,7 @@ class ScoringEngine:
         return cert_score + additional_score
 
     def evaluate_cv(self, cv_data, job_requirements):
-        """Main evaluation function"""
+        """Main evaluation function with detailed reasoning"""
         try:
             # Initial alignment check
             alignment_score = self.check_core_alignment(
@@ -145,30 +145,41 @@ class ScoringEngine:
                 str(job_requirements.get('role', ''))
             )
 
-            # Calculate individual scores
+            reasons = []
+
+            # Calculate individual scores with reasoning
             skills_score = self.score_skills_match(
                 cv_data.get('skills', []),
                 job_requirements.get('required_skills', [])
             )
+            if skills_score < 40:
+                reasons.append(f"Skills Match ({skills_score:.0f}/100): Missing key required skills")
 
             experience_score = self.score_experience_match(
                 cv_data.get('years_experience', 0),
                 job_requirements.get('required_years', 1),
                 cv_data.get('current_role', '') == job_requirements.get('role', '')
             )
+            if experience_score < 40:
+                reasons.append(f"Experience ({experience_score:.0f}/100): Insufficient years of experience or role mismatch")
 
             education_score = self.score_education_match(
                 cv_data.get('education_level', ''),
                 cv_data.get('field_of_study', '')
             )
+            if education_score < 40:
+                reasons.append(f"Education ({education_score:.0f}/100): Education level or field not matching requirements")
 
             certification_score = self.score_certifications(
                 cv_data.get('certifications', []),
                 job_requirements.get('required_certifications', [])
             )
+            if certification_score < 40:
+                reasons.append(f"Certifications ({certification_score:.0f}/100): Missing required certifications")
 
             # Apply capping rules
             if alignment_score < 50:
+                reasons.append(f"Core Role Alignment ({alignment_score:.0f}/100): Current role significantly different from required role")
                 skills_score = min(skills_score, 50)
                 experience_score = min(experience_score, 50)
                 education_score = min(education_score, 50)
@@ -183,7 +194,8 @@ class ScoringEngine:
                 'experience_score': experience_score,
                 'education_score': education_score,
                 'certification_score': certification_score,
-                'alignment_score': alignment_score
+                'alignment_score': alignment_score,
+                'reasons': reasons
             }
         except Exception as e:
             print(f"Error in evaluate_cv: {str(e)}")
@@ -193,5 +205,6 @@ class ScoringEngine:
                 'experience_score': 0,
                 'education_score': 0,
                 'certification_score': 0,
-                'alignment_score': 0
+                'alignment_score': 0,
+                'reasons': ['Error occurred during evaluation']
             }
