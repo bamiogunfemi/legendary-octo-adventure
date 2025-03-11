@@ -9,12 +9,14 @@ def calculate_years_experience(cv_url, start_date_str):
     """Calculate years of experience from start date"""
     try:
         if not start_date_str or pd.isna(start_date_str):
-            return 0, ""
+            return 0, "", ""
         start_date = pd.to_datetime(start_date_str)
         years_exp = (datetime.now() - start_date).days / 365.25
-        return round(years_exp, 1), ""
+        #Simulate fetching first line -  replace with actual logic to extract first line from CV_URL
+        first_line = f"This is a placeholder first line for {cv_url}" if cv_url else ""
+        return round(years_exp, 1), first_line, ""
     except Exception as e:
-        return 0, str(e)
+        return 0, "", str(e)
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -111,17 +113,21 @@ Nice to have
                     progress_bar.progress(progress)
 
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
-                    st.write(f"Processing CV {index + 1}: {row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}")
+                    cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
+                    st.write(f"Processing CV {index + 1}: {cv_name}")
 
                     # Calculate years of experience
-                    years_exp, exp_error = calculate_years_experience(
+                    years_exp, first_line, exp_error = calculate_years_experience(
                         cv_url=cv_link,
                         start_date_str=row.get('Experience Start Date', '')
                     )
 
+                    if first_line:
+                        st.write(f"First line: {first_line}")
+
                     # Create CV dictionary
                     cv_dict = {
-                        'name': f"{str(row.get('FIRST NAME', '')).strip()} {str(row.get('LAST NAME', '')).strip()}",
+                        'name': cv_name,
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
                         'current_role': str(row.get('Current Role', '')).strip(),

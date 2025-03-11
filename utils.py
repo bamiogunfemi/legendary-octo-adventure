@@ -54,7 +54,7 @@ def parse_document_for_experience(cv_url):
             # Use the direct download API endpoint
             creds_json = os.getenv('GOOGLE_CREDENTIALS')
             if not creds_json:
-                return None, "Google credentials not found"
+                return None, None, "Google credentials not found"
 
             try:
                 creds_dict = json.loads(creds_json)
@@ -74,9 +74,9 @@ def parse_document_for_experience(cv_url):
                 content = file_buffer.read()
 
             except json.JSONDecodeError:
-                return None, "Invalid Google credentials format"
+                return None, None, "Invalid Google credentials format"
             except Exception as e:
-                return None, f"Google Drive access error: {str(e)}"
+                return None, None, f"Google Drive access error: {str(e)}"
 
         else:
             # For non-Google Drive URLs
@@ -87,10 +87,10 @@ def parse_document_for_experience(cv_url):
             try:
                 response = requests.get(cv_url, headers=headers, verify=False)
                 if response.status_code != 200:
-                    return None, f"Failed to download file (Status {response.status_code})"
+                    return None, None, f"Failed to download file (Status {response.status_code})"
                 content = response.content
             except Exception as e:
-                return None, f"Download error: {str(e)}"
+                return None, None, f"Download error: {str(e)}"
 
         # Check file signatures
         file_type = None
@@ -106,7 +106,7 @@ def parse_document_for_experience(cv_url):
                 file_type = 'doc'
 
         if not file_type:
-            return None, "Unsupported file format"
+            return None, None, "Unsupported file format"
 
         # Process the file
         file_content = io.BytesIO(content)
@@ -122,10 +122,13 @@ def parse_document_for_experience(cv_url):
                 for para in doc.paragraphs:
                     text += para.text + '\n'
         except Exception as e:
-            return None, f"Error parsing {file_type.upper()} file: {str(e)}"
+            return None, None, f"Error parsing {file_type.upper()} file: {str(e)}"
 
         if not text.strip():
-            return None, "No text content found in document"
+            return None, None, "No text content found in document"
+
+        # Get first line
+        first_line = text.strip().split('\n')[0] if text.strip() else "No content"
 
         # Look for experience section and dates
         experience_patterns = [
@@ -156,40 +159,40 @@ def parse_document_for_experience(cv_url):
                         # Convert to datetime
                         try:
                             if '/' in date_str:
-                                return datetime.strptime(date_str, '%m/%Y'), None
+                                return datetime.strptime(date_str, '%m/%Y'), first_line, None
                             else:
-                                return datetime.strptime(date_str, '%Y'), None
+                                return datetime.strptime(date_str, '%Y'), first_line, None
                         except ValueError:
                             continue
 
-        return None, "No valid experience dates found"
+        return None, first_line, "No valid experience dates found"
     except Exception as e:
-        return None, f"Error processing document: {str(e)}"
+        return None, None, f"Error processing document: {str(e)}"
 
 def calculate_years_experience(cv_url=None, start_date_str=None):
     """Calculate years of experience from CV or start date"""
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            start_date, error = parse_document_for_experience(cv_url)
+            start_date, first_line, error = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), None
+                return round(years_exp, 1), first_line, None
             elif error:
-                return 0, error
+                return 0, first_line, error
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
             try:
                 start_date = pd.to_datetime(start_date_str)
                 years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), None
+                return round(years_exp, 1), None, None
             except Exception as e:
-                return 0, f"Invalid date format: {str(e)}"
+                return 0, None, f"Invalid date format: {str(e)}"
 
-        return 0, "No experience date provided"
+        return 0, None, "No experience date provided"
     except Exception as e:
-        return 0, f"Error calculating experience: {str(e)}"
+        return 0, None, f"Error calculating experience: {str(e)}"
 
 def extract_skills_from_text(text):
     """Extract actual skills from descriptive text"""
