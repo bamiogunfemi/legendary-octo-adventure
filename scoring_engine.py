@@ -11,16 +11,6 @@ class ScoringEngine:
         self.nlp_matcher = NLPMatcher()
         self.stop_words = set(stopwords.words('english'))
 
-    def preprocess_text(self, text):
-        """Preprocess text for analysis"""
-        if not isinstance(text, str):
-            return ""
-        text = text.lower()
-        text = re.sub(r'[^\w\s]', ' ', text)
-        tokens = word_tokenize(text)
-        tokens = [t for t in tokens if t not in self.stop_words]
-        return " ".join(tokens)
-
     def check_core_alignment(self, candidate_role, required_role):
         """Check core role alignment using advanced NLP"""
         try:

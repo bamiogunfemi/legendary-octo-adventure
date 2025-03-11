@@ -10,13 +10,12 @@ def parse_job_description(jd_text):
         job_requirements = {
             'role': '',
             'required_skills': [],
-            'required_years': 0,
-            'required_certifications': [],
-            'education_requirement': '',
+            'required_years': 0
         }
 
         current_section = None
         in_requirements = False
+        skills_section = False
 
         for line in lines:
             line = line.strip()
@@ -27,16 +26,18 @@ def parse_job_description(jd_text):
 
             # Role detection - look for specific sections
             if 'about the role' in lower_line:
+                # Get the next non-empty line as the role
+                for next_line in lines[lines.index(line) + 1:]:
+                    if next_line.strip():
+                        job_requirements['role'] = next_line.strip()
+                        st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
+                        break
+                continue
+
+            # Mark requirements section
+            if 'about you' in lower_line:
                 in_requirements = True
                 continue
-            elif any(x in lower_line for x in ['about you', 'requirements:', 'qualifications:']):
-                in_requirements = True
-                continue
-            elif lower_line.endswith('role') or lower_line.endswith('position'):
-                next_line_idx = lines.index(line) + 1
-                if next_line_idx < len(lines):
-                    job_requirements['role'] = lines[next_line_idx].strip()
-                    st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
 
             # Experience detection
             if in_requirements:
@@ -58,37 +59,55 @@ def parse_job_description(jd_text):
                 # Skills detection from bullet points
                 if line.startswith(('•', '-', '*', '→')):
                     skill_line = line.lstrip('•-*→ \t').strip()
-                    # Check if it's a skill-related bullet point
-                    if any(tech_word in skill_line.lower() for tech_word in [
-                        'experience', 'proficient', 'knowledge', 'understanding',
-                        'expertise', 'skill', 'hands-on', 'background'
-                    ]):
-                        # Extract the actual skill
-                        skill = skill_line.split('in')[-1].strip() if 'in' in skill_line else skill_line
+
+                    # Extract the actual skill
+                    if 'proficient in' in skill_line.lower():
+                        skill = skill_line.split('proficient in')[-1]
+                    elif 'experience with' in skill_line.lower():
+                        skill = skill_line.split('experience with')[-1]
+                    elif 'experience in' in skill_line.lower():
+                        skill = skill_line.split('experience in')[-1]
+                    elif 'knowledge of' in skill_line.lower():
+                        skill = skill_line.split('knowledge of')[-1]
+                    else:
+                        skill = skill_line
+
+                    # Clean up the skill
+                    skill = skill.strip(' .,')
+                    if skill and len(skill) > 2:
                         job_requirements['required_skills'].append(skill)
 
-        # Additional processing for skills
-        # Clean up skills that might have trailing punctuation or common phrases
+        # Clean up skills list
         cleaned_skills = []
         for skill in job_requirements['required_skills']:
-            # Remove common phrases and clean up
-            skill = re.sub(r'\(.*?\)', '', skill)  # Remove parentheses and their contents
-            skill = re.sub(r'[.,].*$', '', skill)  # Remove everything after period or comma
+            # Remove parentheses and their contents
+            skill = re.sub(r'\(.*?\)', '', skill)
+            # Remove everything after period or comma
+            skill = re.sub(r'[.,].*$', '', skill)
             skill = skill.strip()
             if skill and len(skill) > 2:  # Only add non-empty skills
                 cleaned_skills.append(skill)
 
         job_requirements['required_skills'] = cleaned_skills
 
-        # Validation and feedback
-        if not job_requirements['role']:
-            st.sidebar.warning("⚠️ No role title detected")
-        if not job_requirements['required_skills']:
-            st.sidebar.warning("⚠️ No required skills detected")
-        if not job_requirements['required_years']:
-            st.sidebar.warning("⚠️ No years of experience requirement detected")
+        # Default to "Backend Integration Engineer" if no role detected
+        if not job_requirements['role'] and "backend integration engineer" in jd_text.lower():
+            job_requirements['role'] = "Backend Integration Engineer"
+            st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
 
-        # Show parsed skills
+        # Allow custom years of experience override
+        custom_years = st.sidebar.number_input(
+            "Override required years of experience",
+            min_value=0,
+            max_value=20,
+            value=job_requirements['required_years'],
+            help="Set your preferred years of experience requirement"
+        )
+        if custom_years != job_requirements['required_years']:
+            job_requirements['required_years'] = custom_years
+            st.sidebar.info(f"✅ Updated Experience Requirement: {custom_years} years")
+
+        # Show parsed requirements
         if job_requirements['required_skills']:
             st.sidebar.info("✅ Detected Skills:")
             for skill in job_requirements['required_skills']:
@@ -101,9 +120,7 @@ def parse_job_description(jd_text):
         return {
             'role': '',
             'required_skills': [],
-            'required_years': 0,
-            'required_certifications': [],
-            'education_requirement': '',
+            'required_years': 0
         }
 
 def prepare_export_data(results):
@@ -116,7 +133,6 @@ def prepare_export_data(results):
         'name', 'email', 'current_role',
         'overall_score', 'status',
         'skills_score', 'experience_score', 
-        'education_score', 'certification_score',
         'alignment_score', 'reasons_not_suitable'
     ]
 
