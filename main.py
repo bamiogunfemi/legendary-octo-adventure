@@ -12,9 +12,7 @@ def calculate_years_experience(cv_url, start_date_str):
             return 0, "", ""
         start_date = pd.to_datetime(start_date_str)
         years_exp = (datetime.now() - start_date).days / 365.25
-        #Simulate fetching first line -  replace with actual logic to extract first line from CV_URL
-        first_line = f"This is a placeholder first line for {cv_url}" if cv_url else ""
-        return round(years_exp, 1), first_line, ""
+        return round(years_exp, 1), "", ""
     except Exception as e:
         return 0, "", str(e)
 
@@ -28,8 +26,6 @@ def main():
 
     # Sidebar for job description input
     st.sidebar.header("Job Description")
-
-    # Role input
     role = st.sidebar.text_input(
         "Role Title",
         value="Backend Integration Engineer",
@@ -130,7 +126,6 @@ Nice to have
                         'name': cv_name,
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
-                        'current_role': str(row.get('Current Role', '')).strip(),
                         'years_experience': years_exp,
                         'skills': []
                     }
@@ -143,15 +138,11 @@ Nice to have
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
-                        'current_role': cv_dict['current_role'],
                         'years_experience': years_exp,
                         'required_skills': ', '.join(result.get('matched_required_skills', [])),
                         'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
                         'missing_skills': ', '.join(result.get('missing_critical_skills', [])),
                         'overall_score': result['overall_score'],
-                        'skills_score': result['skills_score'],
-                        'experience_score': result['experience_score'],
-                        'alignment_score': result['alignment_score'],
                         'document_errors': exp_error if exp_error else '',
                         'notes': result.get('evaluation_notes', '')
                     }
@@ -209,7 +200,6 @@ Nice to have
                         "name": "Name",
                         "email": "Email",
                         "cv_link": st.column_config.LinkColumn("CV Link"),
-                        "current_role": "Current Role",
                         "years_experience": "Years of Experience",
                         "required_skills": "Required Skills Found",
                         "nice_to_have_skills": "Nice-to-Have Skills",
@@ -218,7 +208,6 @@ Nice to have
                             "Match Score (%)",
                             format="%.2f"
                         ),
-                        "status": "Status",
                         "document_errors": "CV Processing Issues",
                         "notes": "Evaluation Notes",
                         "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons"),

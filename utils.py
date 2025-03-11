@@ -44,6 +44,9 @@ def parse_document_for_experience(cv_url):
     """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
         # Check if it's a Google Drive URL
+        if not cv_url or not cv_url.strip():
+            return None, None, "No CV URL provided"
+
         if 'drive.google.com' in cv_url:
             # Extract file ID and download content using Google Drive API
             if '/file/d/' in cv_url:
@@ -54,7 +57,7 @@ def parse_document_for_experience(cv_url):
             # Use the direct download API endpoint
             creds_json = os.getenv('GOOGLE_CREDENTIALS')
             if not creds_json:
-                return None, None, "Google credentials not found in environment variables"
+                return None, None, "Google credentials not found"
 
             try:
                 creds_dict = json.loads(creds_json)
@@ -127,9 +130,15 @@ def parse_document_for_experience(cv_url):
         if not text.strip():
             return None, None, "No text content found in document"
 
-        # Get first line
-        first_line = text.strip().split('\n')[0] if text.strip() else "No content"
-        st.write(f"Extracted first line: {first_line}")  # Debug output
+        # Get the first non-empty line
+        first_line = None
+        for line in text.split('\n'):
+            if line.strip():
+                first_line = line.strip()
+                break
+
+        if not first_line:
+            first_line = "No readable content found"
 
         # Look for experience section and dates
         experience_patterns = [
