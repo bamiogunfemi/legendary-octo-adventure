@@ -2,17 +2,51 @@ import streamlit as st
 import pandas as pd
 from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
-from utils import parse_job_description, prepare_export_data, calculate_years_experience
+from utils import parse_job_description, prepare_export_data
 from datetime import datetime
 
-def calculate_years_experience(cv_url, start_date_str):
-    """Calculate years of experience from start date"""
+def parse_document_for_experience(cv_url):
+    """Placeholder function to parse experience from a CV URL.  Needs implementation."""
     try:
-        if not start_date_str or pd.isna(start_date_str):
-            return 0, "", ""
-        start_date = pd.to_datetime(start_date_str)
-        years_exp = (datetime.now() - start_date).days / 365.25
-        return round(years_exp, 1), "", ""
+        # Replace this with actual CV parsing logic
+        # This is a placeholder, and will likely need to use a library to extract information from the CV.
+        # Example using a hypothetical library 'cv_parser':
+        # import cv_parser
+        # parsed_data = cv_parser.parse(cv_url)
+        # start_date = parsed_data.get('start_date')
+        # first_line = parsed_data.get('first_line', '')
+        # return start_date, first_line, None
+
+
+        #Simple Placeholder return
+        return datetime(2020,1,1), "Placeholder First Line", None
+
+    except Exception as e:
+        return None, "", str(e)
+
+
+def calculate_years_experience(cv_url, start_date_str):
+    """Calculate years of experience from CV or start date"""
+    try:
+        # Try to get start date from CV first
+        if cv_url and cv_url.strip():
+            start_date, first_line, exp_error = parse_document_for_experience(cv_url)
+            if start_date:
+                years_exp = (datetime.now() - start_date).days / 365.25
+                return round(years_exp, 1), first_line, None
+            elif exp_error:
+                return 0, first_line, exp_error
+
+        # Fallback to start date from sheet
+        if start_date_str and not pd.isna(start_date_str):
+            try:
+                start_date = pd.to_datetime(start_date_str)
+                years_exp = (datetime.now() - start_date).days / 365.25
+                return round(years_exp, 1), "", None
+            except Exception as e:
+                return 0, "", f"Invalid date format: {str(e)}"
+
+        return 0, "", "No experience date provided"
     except Exception as e:
         return 0, "", str(e)
 

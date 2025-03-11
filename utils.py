@@ -71,13 +71,20 @@ def parse_document_for_experience(cv_url):
                 # Build the Drive API service
                 service = build('drive', 'v3', credentials=credentials)
 
-                # Get the file using Drive API
+                # Get the file metadata first
+                file_metadata = service.files().get(fileId=file_id, fields='mimeType').execute()
+                mime_type = file_metadata.get('mimeType', '')
+
+                # Get the file content
                 request = service.files().get_media(fileId=file_id)
                 file_buffer = io.BytesIO()
                 downloader = request.execute()
                 file_buffer.write(downloader)
                 file_buffer.seek(0)
                 content = file_buffer.read()
+
+                # Log metadata for debugging
+                st.write("File MIME Type:", mime_type)
 
             except json.JSONDecodeError:
                 return None, None, "Invalid JSON format in Google credentials"
@@ -98,92 +105,79 @@ def parse_document_for_experience(cv_url):
             except Exception as e:
                 return None, None, f"Download error: {str(e)}"
 
-        # Check file signatures
-        file_type = None
-        if content.startswith(b'%PDF'):
-            file_type = 'pdf'
-        elif content.startswith(b'PK\x03\x04'):  # docx file signature
-            file_type = 'doc'
-        else:
-            content_type = response.headers.get('content-type', '').lower() if 'response' in locals() else ''
-            if 'pdf' in content_type:
-                file_type = 'pdf'
-            elif 'word' in content_type or 'msword' in content_type:
-                file_type = 'doc'
-
-        if not file_type:
-            return None, None, "Unsupported file format"
-
-        # Process the file
-        file_content = io.BytesIO(content)
+        # Process the file based on type
         text = ""
-
         try:
-            if file_type == 'pdf':
-                pdf_reader = PdfReader(file_content)
+            # Check if it's a PDF
+            if content.startswith(b'%PDF'):
+                pdf_reader = PdfReader(io.BytesIO(content))
                 for page in pdf_reader.pages:
-                    text += page.extract_text()
-            elif file_type == 'doc':
-                doc = Document(file_content)
+                    text += page.extract_text() + "\n"
+            # Check if it's a DOCX
+            elif content.startswith(b'PK\x03\x04'):
+                doc = Document(io.BytesIO(content))
                 for para in doc.paragraphs:
-                    text += para.text + '\n'
-        except Exception as e:
-            return None, None, f"Error parsing {file_type.upper()} file: {str(e)}"
+                    text += para.text + "\n"
+            else:
+                return None, None, "Unsupported file format"
 
-        if not text.strip():
-            return None, None, "No text content found in document"
+            # Log the content
+            st.write("CV Content (first 1000 characters):")
+            st.text(text[:1000] + "..." if len(text) > 1000 else text)
 
-        # Log full CV content
-        st.write("Full CV Content:")
-        st.text(text[:1000] + "..." if len(text) > 1000 else text)
+            if not text.strip():
+                return None, None, "No text content found in document"
 
-        # Get the first non-empty line
-        first_line = None
-        for line in text.split('\n'):
-            if line.strip():
-                first_line = line.strip()
-                st.write("First Line Found:", first_line)
-                break
+            # Get the first non-empty line
+            first_line = None
+            for line in text.split('\n'):
+                if line.strip():
+                    first_line = line.strip()
+                    st.write("First Line Found:", first_line)
+                    break
 
-        if not first_line:
-            first_line = "No readable content found"
+            if not first_line:
+                return None, None, "No readable content found"
 
-        # Look for experience section and dates
-        experience_patterns = [
-            r"(?:Experience|Work History|Employment|Career History)",
-            r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
-            r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
-        ]
+            # Look for experience section and dates
+            lines = text.split('\n')
+            experience_patterns = [
+                r"(?:Experience|Work History|Employment|Career History)",
+                r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
+                r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
+            ]
 
-        # Find first non-freelance role date
-        lines = text.split('\n')
-        current_section = ""
-        for line in lines:
-            # Check if this is the experience section
-            if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
-                current_section = "experience"
-                continue
-
-            if current_section == "experience":
-                # Skip if it's a freelance role
-                if re.search(r"freelance|contract", line, re.IGNORECASE):
+            # Find first non-freelance role date
+            current_section = ""
+            for line in lines:
+                # Check if this is the experience section
+                if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
+                    current_section = "experience"
                     continue
 
-                # Look for date patterns
-                for pattern in experience_patterns[1:]:
-                    match = re.search(pattern, line)
-                    if match:
-                        date_str = match.group(1)
-                        # Convert to datetime
-                        try:
-                            if '/' in date_str:
-                                return datetime.strptime(date_str, '%m/%Y'), first_line, None
-                            else:
-                                return datetime.strptime(date_str, '%Y'), first_line, None
-                        except ValueError:
-                            continue
+                if current_section == "experience":
+                    # Skip if it's a freelance role
+                    if re.search(r"freelance|contract", line, re.IGNORECASE):
+                        continue
 
-        return None, first_line, "No valid experience dates found"
+                    # Look for date patterns
+                    for pattern in experience_patterns[1:]:
+                        match = re.search(pattern, line)
+                        if match:
+                            date_str = match.group(1)
+                            try:
+                                if '/' in date_str:
+                                    return datetime.strptime(date_str, '%m/%Y'), first_line, None
+                                else:
+                                    return datetime.strptime(date_str, '%Y'), first_line, None
+                            except ValueError:
+                                continue
+
+            return None, first_line, "No valid experience dates found"
+
+        except Exception as e:
+            return None, None, f"Error processing document: {str(e)}"
+
     except Exception as e:
         return None, None, f"Error processing document: {str(e)}"
 
