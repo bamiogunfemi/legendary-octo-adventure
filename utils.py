@@ -8,6 +8,10 @@ import requests
 from docx import Document
 import mimetypes
 import os
+import json
+from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 def get_google_drive_file_url(url):
     """Convert Google Drive share URL to direct download URL"""
@@ -48,38 +52,55 @@ def parse_document_for_experience(cv_url):
                 file_id = cv_url.split('id=')[1].split('&')[0]
 
             # Use the direct download API endpoint
-            download_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+            creds_json = os.getenv('GOOGLE_CREDENTIALS')
+            if not creds_json:
+                st.warning("Google credentials not found in environment variables")
+                return None
 
-            # Set up headers with authorization if available
-            headers = {
-                'Authorization': f'Bearer {os.getenv("GOOGLE_ACCESS_TOKEN")}',
-                'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            }
+            try:
+                creds_dict = json.loads(creds_json)
+                credentials = service_account.Credentials.from_service_account_info(
+                    creds_dict, scopes=['https://www.googleapis.com/auth/drive.readonly']
+                )
+
+                # Build the Drive API service
+                service = build('drive', 'v3', credentials=credentials)
+
+                # Get the file using Drive API
+                request = service.files().get_media(fileId=file_id)
+                file_buffer = io.BytesIO()
+                downloader = request.execute()
+                file_buffer.write(downloader)
+                file_buffer.seek(0)
+                content = file_buffer.read()
+
+            except json.JSONDecodeError:
+                st.warning("Invalid JSON format in Google credentials")
+                return None
+            except Exception as e:
+                st.warning(f"Error accessing Google Drive: {str(e)}")
+                return None
+
         else:
-            download_url = cv_url
+            # For non-Google Drive URLs
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             }
-
-        # Download file
-        response = requests.get(download_url, headers=headers, verify=False)
-
-        if response.status_code != 200:
-            st.warning(f"Failed to download file: Status {response.status_code}")
-            return None
-
-        # Check content type and file signatures
-        content = response.content
-        file_type = None
+            response = requests.get(cv_url, headers=headers, verify=False)
+            if response.status_code != 200:
+                st.warning(f"Failed to download file: Status {response.status_code}")
+                return None
+            content = response.content
 
         # Check file signatures
+        file_type = None
         if content.startswith(b'%PDF'):
             file_type = 'pdf'
         elif content.startswith(b'PK\x03\x04'):  # docx file signature
             file_type = 'doc'
         else:
-            content_type = response.headers.get('content-type', '').lower()
+            content_type = response.headers.get('content-type', '').lower() if 'response' in locals() else ''
             if 'pdf' in content_type:
                 file_type = 'pdf'
             elif 'word' in content_type or 'msword' in content_type:
@@ -87,7 +108,6 @@ def parse_document_for_experience(cv_url):
 
         if not file_type:
             st.warning("Unsupported file type")
-            st.info(f"Content-Type: {response.headers.get('content-type')}")
             return None
 
         # Process the file
