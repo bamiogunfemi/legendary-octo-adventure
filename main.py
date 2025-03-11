@@ -80,7 +80,7 @@ Nice to have
         help="Enter the range of cells to process"
     )
 
-    if st.sidebar.button("Evaluate CVs"):
+    if st.sidebar.button("Evaluate First 3 CVs"):
         if not jd_text or not sheet_id:
             st.error("Please provide both job description and Google Sheet ID")
             return
@@ -90,7 +90,6 @@ Nice to have
                 # Parse job requirements
                 job_requirements = parse_job_description(jd_text, years_exp)
                 job_requirements['role'] = role  # Override role with user input
-                st.sidebar.write("Parsed Job Requirements:", job_requirements)
 
                 # Fetch CV data
                 cv_data = google_client.get_sheet_data(sheet_id, sheet_range)
@@ -99,11 +98,21 @@ Nice to have
                     st.error("No data found in the specified sheet range")
                     return
 
+                # Process first 3 CVs only
+                cv_data = cv_data.head(3)
+                st.info(f"Processing first 3 CVs out of {len(cv_data)} total entries")
+
                 # Process each CV
                 results = []
-                for _, row in cv_data.iterrows():
-                    # Get CV link first
+                progress_bar = st.progress(0)
+
+                for index, row in cv_data.iterrows():
+                    # Update progress
+                    progress = (index + 1) / len(cv_data)
+                    progress_bar.progress(progress)
+
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
+                    st.write(f"Processing CV {index + 1}: {row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}")
 
                     # Calculate years of experience with error handling
                     years_exp, exp_error = calculate_years_experience(
@@ -153,6 +162,9 @@ Nice to have
 
                     results.append(evaluation)
 
+                # Hide progress bar after completion
+                progress_bar.empty()
+
                 # Prepare results for display
                 results_df = prepare_export_data(results)
 
@@ -162,7 +174,7 @@ Nice to have
                 # Summary metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Total CVs Processed", len(results))
+                    st.metric("CVs Processed", len(results))
                 with col2:
                     suitable_count = len(results_df[results_df['status'] != 'Not Suitable'])
                     st.metric("Suitable Candidates", suitable_count)
