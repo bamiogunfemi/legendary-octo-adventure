@@ -1,6 +1,87 @@
 import pandas as pd
 import streamlit as st
 import re
+from PyPDF2 import PdfReader
+from datetime import datetime
+import io
+import requests
+
+def parse_pdf_for_experience(cv_url):
+    """Parse PDF CV to extract first non-freelance experience date"""
+    try:
+        # Download PDF from URL
+        response = requests.get(cv_url)
+        if response.status_code != 200:
+            return None
+
+        # Read PDF content
+        pdf_file = io.BytesIO(response.content)
+        pdf_reader = PdfReader(pdf_file)
+
+        # Extract text from all pages
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+
+        # Look for experience section and dates
+        experience_patterns = [
+            r"(?:Experience|Work History|Employment|Career History)",
+            r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
+            r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
+        ]
+
+        # Find first non-freelance role date
+        lines = text.split('\n')
+        current_section = ""
+        for line in lines:
+            # Check if this is the experience section
+            if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
+                current_section = "experience"
+                continue
+
+            if current_section == "experience":
+                # Skip if it's a freelance role
+                if re.search(r"freelance|contract", line, re.IGNORECASE):
+                    continue
+
+                # Look for date patterns
+                for pattern in experience_patterns[1:]:
+                    match = re.search(pattern, line)
+                    if match:
+                        date_str = match.group(1)
+                        # Convert to datetime
+                        try:
+                            if '/' in date_str:
+                                return datetime.strptime(date_str, '%m/%Y')
+                            else:
+                                return datetime.strptime(date_str, '%Y')
+                        except ValueError:
+                            continue
+
+        return None
+    except Exception as e:
+        st.error(f"Error parsing PDF: {str(e)}")
+        return None
+
+def calculate_years_experience(cv_url=None, start_date_str=None):
+    """Calculate years of experience from CV or start date"""
+    try:
+        # Try to get start date from CV first
+        if cv_url:
+            start_date = parse_pdf_for_experience(cv_url)
+            if start_date:
+                years_exp = (datetime.now() - start_date).days / 365.25
+                return round(years_exp, 1)
+
+        # Fallback to start date from sheet
+        if start_date_str and not pd.isna(start_date_str):
+            start_date = pd.to_datetime(start_date_str)
+            years_exp = (datetime.now() - start_date).days / 365.25
+            return round(years_exp, 1)
+
+        return 0
+    except:
+        return 0
 
 def extract_skills_from_text(text):
     """Extract actual skills from descriptive text"""
@@ -131,16 +212,16 @@ def prepare_export_data(results):
 
     # Reorder columns to show candidate info first
     columns_order = [
-        'name', 'email', 'years_experience', 'skills',
+        'name', 'email', 'cv_link', 'years_experience', 'skills',
         'overall_score', 'status',
-        'skills_score', 'experience_score', 
+        'skills_score', 'experience_score',
         'alignment_score', 'reasons_not_suitable'
     ]
 
     # Create status column
     export_df['status'] = export_df['overall_score'].apply(
-        lambda x: 'Highly Suitable' if x >= 80 
-        else 'Suitable' if x >= 60 
+        lambda x: 'Highly Suitable' if x >= 80
+        else 'Suitable' if x >= 60
         else 'Not Suitable'
     )
 
@@ -152,5 +233,8 @@ def prepare_export_data(results):
     for col in columns_order:
         if col not in export_df.columns:
             export_df[col] = ''
+
+    #Update years_experience column using new function
+    export_df['years_experience'] = export_df['cv_link'].apply(calculate_years_experience)
 
     return export_df[columns_order]

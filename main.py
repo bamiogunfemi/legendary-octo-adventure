@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
-from utils import parse_job_description, prepare_export_data
+from utils import parse_job_description, prepare_export_data, calculate_years_experience
 from datetime import datetime
 
-def calculate_years_experience(start_date_str):
+def calculate_years_experience(cv_url, start_date_str):
     """Calculate years of experience from start date"""
     try:
         if not start_date_str or pd.isna(start_date_str):
@@ -83,24 +83,25 @@ def main():
                 # Process each CV
                 results = []
                 for _, row in cv_data.iterrows():
+                    # Get CV link first
+                    cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
+
                     # Create CV dictionary with basic info
                     cv_dict = {
                         'name': f"{str(row.get('FIRST NAME', '')).strip()} {str(row.get('LAST NAME', '')).strip()}",
                         'email': str(row.get('EMAIL', '')).strip(),
-                        'years_experience': calculate_years_experience(row.get('Experience Start Date', '')),
-                        'skills': [],
-                        'certifications': []
+                        'cv_link': cv_link,
+                        'years_experience': calculate_years_experience(
+                            cv_url=cv_link,
+                            start_date_str=row.get('Experience Start Date', '')
+                        ),
+                        'skills': []
                     }
 
                     # Process skills from dedicated column
                     skills = row.get('Skills', '')
                     if isinstance(skills, str) and skills.strip():
                         cv_dict['skills'] = [s.strip() for s in skills.split(',') if s.strip()]
-
-                    # Process certifications
-                    certifications = row.get('Certifications', row.get('certifications', ''))
-                    if isinstance(certifications, str) and certifications.strip():
-                        cv_dict['certifications'] = [c.strip() for c in certifications.split(',') if c.strip()]
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
@@ -109,8 +110,9 @@ def main():
                     evaluation = {
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
+                        'cv_link': cv_dict['cv_link'],
                         'years_experience': cv_dict['years_experience'],
-                        'skills': ', '.join(cv_dict['skills']),  # Add skills to display
+                        'skills': ', '.join(cv_dict['skills']),
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
@@ -118,7 +120,7 @@ def main():
                     }
 
                     # Add reasons for not suitable candidates
-                    if 'reasons' in result and result['reasons']:
+                    if result['reasons']:
                         evaluation['reasons_not_suitable'] = '\n'.join(result['reasons'])
                     else:
                         evaluation['reasons_not_suitable'] = ''
@@ -149,6 +151,7 @@ def main():
                     column_config={
                         "name": "Name",
                         "email": "Email",
+                        "cv_link": st.column_config.LinkColumn("CV Link"),
                         "years_experience": "Years of Experience",
                         "skills": "Skills",
                         "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
