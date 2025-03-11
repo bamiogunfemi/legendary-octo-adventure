@@ -333,10 +333,9 @@ def prepare_export_data(results):
 
     # Reorder columns to show candidate info first
     columns_order = [
-        'name', 'email', 'cv_link', 'current_role', 'years_experience', 'skills',
-        'overall_score', 'status',
-        'skills_score', 'experience_score',
-        'alignment_score', 'reasons_not_suitable', 'document_errors'
+        'name', 'email', 'cv_link', 'first_line', 'years_experience',
+        'required_skills', 'nice_to_have_skills', 'missing_skills',
+        'overall_score', 'document_errors', 'notes', 'reasons_not_suitable'
     ]
 
     # Create status column

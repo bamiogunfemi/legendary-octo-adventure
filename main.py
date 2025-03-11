@@ -126,6 +126,7 @@ Nice to have
                         'name': cv_name,
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
+                        'first_line': first_line if first_line else '',  # Add first line
                         'years_experience': years_exp,
                         'skills': []
                     }
@@ -138,6 +139,7 @@ Nice to have
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
+                        'first_line': cv_dict['first_line'],  # Add first line
                         'years_experience': years_exp,
                         'required_skills': ', '.join(result.get('matched_required_skills', [])),
                         'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
@@ -200,6 +202,10 @@ Nice to have
                         "name": "Name",
                         "email": "Email",
                         "cv_link": st.column_config.LinkColumn("CV Link"),
+                        "first_line": st.column_config.TextColumn(  # Add first line column
+                            "First Line of CV",
+                            help="First line extracted from the CV document"
+                        ),
                         "years_experience": "Years of Experience",
                         "required_skills": "Required Skills Found",
                         "nice_to_have_skills": "Nice-to-Have Skills",
