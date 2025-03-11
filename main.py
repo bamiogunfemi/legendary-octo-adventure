@@ -178,17 +178,18 @@ Nice to have
                         'first_line': first_line,
                         'years_experience': years_exp,
                         'skills': [],
-                        'cv_text': exp_error if "CV Content" in str(exp_error) else ''
+                        'cv_text': exp_error if "CV Content:" in str(exp_error) else ''
                     }
 
                     # Extract CV content from error message if present
                     if exp_error and "CV Content:" in exp_error:
                         cv_dict['cv_text'] = exp_error.split("CV Content:", 1)[1].strip()
+                        st.write("CV Text extracted for analysis:", len(cv_dict['cv_text']), "characters")
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
 
-                    # Combine results
+                    # Update evaluation dictionary
                     evaluation = {
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
@@ -199,7 +200,7 @@ Nice to have
                         'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
                         'missing_skills': ', '.join(result.get('missing_critical_skills', [])),
                         'overall_score': result['overall_score'],
-                        'document_errors': exp_error if exp_error else '',
+                        'document_errors': exp_error if exp_error and "CV Content:" not in exp_error else '',
                         'notes': result.get('evaluation_notes', '')
                     }
 
