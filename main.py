@@ -110,6 +110,7 @@ def main():
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'years_experience': cv_dict['years_experience'],
+                        'skills': ', '.join(cv_dict['skills']),  # Add skills to display
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
@@ -149,6 +150,7 @@ def main():
                         "name": "Name",
                         "email": "Email",
                         "years_experience": "Years of Experience",
+                        "skills": "Skills",
                         "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
                         "status": "Status",
                         "reasons_not_suitable": st.column_config.TextColumn("Reasons (if not suitable)")
