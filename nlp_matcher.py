@@ -16,19 +16,19 @@ class NLPMatcher:
             nltk.download('stopwords', quiet=True)
             nltk.download('wordnet', quiet=True)
             nltk.download('averaged_perceptron_tagger', quiet=True)
-            # Initialize after downloading
             self.stop_words = set(stopwords.words('english'))
             self.lemmatizer = WordNetLemmatizer()
 
-            # Common technical skills patterns
+            # Enhanced technical skills patterns
             self.tech_skills_patterns = {
-                'programming_languages': r'\b(python|java|javascript|typescript|go|golang|ruby|php|swift|kotlin|scala|rust|c\+\+|c#)\b',
-                'frameworks': r'\b(django|flask|fastapi|spring|react|angular|vue|express|node\.js|tensorflow|pytorch)\b',
-                'databases': r'\b(postgresql|mysql|mongodb|redis|elasticsearch|cassandra|dynamodb|oracle)\b',
-                'cloud': r'\b(aws|azure|gcp|google cloud|kubernetes|docker|terraform|ansible)\b',
-                'tools': r'\b(git|jenkins|travis|circleci|maven|gradle|npm|yarn|webpack|babel)\b',
-                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai)\b',
-                'methodologies': r'\b(agile|scrum|kanban|tdd|bdd|ci/cd)\b'
+                'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#)\b',
+                'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?)\b',
+                'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle)\b',
+                'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?)\b',
+                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation)\b',
+                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm)\b',
+                'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp)\b',
+                'data_engineering': r'\b(spark|hadoop|kafka|airflow|databricks|snowflake|etl|data pipeline)\b'
             }
 
         except Exception as e:
@@ -37,36 +37,143 @@ class NLPMatcher:
             self.lemmatizer = None
 
     def extract_technical_skills(self, text):
-        """Extract technical skills from CV text"""
+        """Enhanced technical skills extraction from CV text"""
         if not text:
             return []
 
-        # Check if text starts with "CV Content:" prefix and extract the actual content
+        # Check if text starts with "CV Content:" prefix
         if isinstance(text, str) and text.startswith("CV Content:"):
             text = text[len("CV Content:"):].strip()
 
+        text = text.lower()
+        found_skills = set()
+
+        # Extract skills using patterns
+        for category, pattern in self.tech_skills_patterns.items():
+            matches = re.finditer(pattern, text)
+            for match in matches:
+                skill = match.group(0)
+                # Normalize skill names
+                skill = self.normalize_skill_name(skill)
+                found_skills.add(skill)
+
+        # Additional common tech terms
         common_tech_terms = {
-            'python', 'java', 'javascript', 'typescript', 'php', 'ruby', 'c++', 'c#', 'go', 'golang', 'rust', 'perl',
-            'swift', 'kotlin', 'scala', 'haskell', 'dart', 'react', 'angular', 'vue', 'next.js', 'gatsby',
-            'node.js', 'express', 'django', 'flask', 'spring', 'laravel', 'rails', 'asp.net',
-            'sql', 'mysql', 'postgresql', 'mongodb', 'oracle', 'sqlite', 'redis', 'cassandra', 'dynamodb',
-            'aws', 'azure', 'gcp', 'google cloud', 'firebase', 'serverless', 'lambda', 'ec2', 's3',
-            'docker', 'kubernetes', 'istio', 'jenkins', 'gitlab ci', 'github actions', 'circleci', 'travis',
-            'terraform', 'ansible', 'chef', 'puppet', 'prometheus', 'grafana', 'elk', 'logstash',
-            'git', 'svn', 'mercurial', 'jira', 'confluence', 'trello', 'notion', 'bitbucket',
-            'rest', 'restful', 'api', 'graphql', 'soap', 'microservices', 'oauth', 'jwt', 'saml', 'http', 'https', 'tcp/ip',
-            'agile', 'scrum', 'kanban', 'tdd', 'bdd', 'ci/cd', 'devops', 'sre', 'iac', 'webhooks',
-            'argocd', 'postgres', 'testing', 'cloudformation'
+            'rest', 'restful', 'api', 'graphql', 'microservices', 'oauth',
+            'jwt', 'saml', 'http', 'https', 'tcp/ip', 'webhooks', 'soa',
+            'soap', 'grpc', 'openapi', 'swagger', 'postman', 'curl'
         }
 
-        text = text.lower()
-        found_skills = []
+        # Look for terms in context
+        words = word_tokenize(text)
+        for i, word in enumerate(words):
+            if word.lower() in common_tech_terms:
+                found_skills.add(word.lower())
+            # Check for compound terms
+            if i < len(words) - 1:
+                compound = f"{word.lower()} {words[i+1].lower()}"
+                if compound in common_tech_terms:
+                    found_skills.add(compound)
 
-        for skill in common_tech_terms:
-            if re.search(r'\b' + re.escape(skill) + r'\b', text):
-                found_skills.append(skill)
+        # Log extracted skills
+        st.write("Extracted Technical Skills:", sorted(list(found_skills)))
 
-        return found_skills
+        return sorted(list(found_skills))
+
+    def normalize_skill_name(self, skill):
+        """Normalize skill names to standard format"""
+        replacements = {
+            'javascript': 'javascript',
+            'js': 'javascript',
+            'typescript': 'typescript',
+            'py': 'python',
+            'golang': 'go',
+            'nodejs': 'node.js',
+            'reactjs': 'react',
+            'vuejs': 'vue',
+            'postgres': 'postgresql',
+            'k8s': 'kubernetes',
+        }
+
+        skill = skill.lower().strip()
+        return replacements.get(skill, skill)
+
+    def get_skill_similarity(self, candidate_skill, required_skill):
+        """Compute similarity between two skills with improved matching"""
+        # Normalize both skills
+        skill1 = self.normalize_skill_name(candidate_skill)
+        skill2 = self.normalize_skill_name(required_skill)
+
+        # Exact match after normalization
+        if skill1 == skill2:
+            return 1.0
+
+        # Handle common variations
+        if any(variation in skill1 for variation in ['.js', 'js']) and \
+           any(variation in skill2 for variation in ['.js', 'js']):
+            base1 = skill1.replace('.js', '').replace('js', '')
+            base2 = skill2.replace('.js', '').replace('js', '')
+            if base1 == base2:
+                return 1.0
+
+        # Compute similarity scores
+        tokens1 = set(self.preprocess_text(skill1))
+        tokens2 = set(self.preprocess_text(skill2))
+
+        # Jaccard similarity
+        intersection = len(tokens1 & tokens2)
+        union = len(tokens1 | tokens2)
+
+        if union == 0:
+            return 0.0
+
+        jaccard = intersection / union
+
+        # Edit distance similarity
+        edit_sim = 1 - (edit_distance(skill1, skill2) / max(len(skill1), len(skill2)))
+
+        # Final similarity score
+        return (jaccard * 0.6 + edit_sim * 0.4)
+
+    def match_skills(self, candidate_skills, required_skills):
+        """Advanced skill matching using NLP"""
+        if not candidate_skills or not required_skills:
+            return 0, []
+
+        matched_skills = []
+        total_score = 0
+
+        # Log the matching process
+        st.write("\nSkill Matching Process:")
+        st.write("Candidate Skills:", candidate_skills)
+        st.write("Required Skills:", required_skills)
+
+        for req_skill in required_skills:
+            # Find best matching candidate skill
+            best_match = max(
+                [(cand_skill, self.get_skill_similarity(cand_skill, req_skill)) 
+                 for cand_skill in candidate_skills],
+                key=lambda x: x[1]
+            )
+
+            # Log match details
+            st.write(f"\nMatching '{req_skill}':")
+            st.write(f"Best match: '{best_match[0]}' (similarity: {best_match[1]:.2f})")
+
+            if best_match[1] > 0.6:  # Threshold for considering a match
+                matched_skills.append({
+                    'required': req_skill,
+                    'matched': best_match[0],
+                    'similarity': best_match[1]
+                })
+                total_score += best_match[1]
+
+        if not required_skills:
+            return 0, []
+
+        avg_score = (total_score / len(required_skills)) * 100
+        st.write(f"\nFinal matching score: {avg_score:.2f}%")
+        return avg_score, matched_skills
 
     def preprocess_text(self, text):
         """Advanced text preprocessing"""
@@ -102,62 +209,6 @@ class NLPMatcher:
         # Compute TF-IDF
         tf_idf = {term: freq * idf[term] for term, freq in tf.items()}
         return tf_idf
-
-    def get_skill_similarity(self, candidate_skill, required_skill):
-        """Compute similarity between two skills"""
-        # Preprocess both skills
-        skill1_tokens = set(self.preprocess_text(candidate_skill))
-        skill2_tokens = set(self.preprocess_text(required_skill))
-
-        # Exact match
-        if skill1_tokens == skill2_tokens:
-            return 1.0
-
-        # Compute Jaccard similarity
-        intersection = len(skill1_tokens & skill2_tokens)
-        union = len(skill1_tokens | skill2_tokens)
-
-        if union == 0:
-            return 0.0
-
-        # Add edit distance for better matching
-        avg_edit_distance = sum(min(edit_distance(t1, t2) for t2 in skill2_tokens) 
-                              for t1 in skill1_tokens) / len(skill1_tokens)
-
-        jaccard = intersection / union
-        normalized_edit = 1 - (avg_edit_distance / max(len(candidate_skill), len(required_skill)))
-
-        return (jaccard + normalized_edit) / 2
-
-    def match_skills(self, candidate_skills, required_skills):
-        """Advanced skill matching using NLP"""
-        if not candidate_skills or not required_skills:
-            return 0, []
-
-        matched_skills = []
-        total_score = 0
-
-        for req_skill in required_skills:
-            # Find best matching candidate skill
-            best_match = max(
-                [(cand_skill, self.get_skill_similarity(cand_skill, req_skill)) 
-                 for cand_skill in candidate_skills],
-                key=lambda x: x[1]
-            )
-
-            if best_match[1] > 0.6:  # Threshold for considering a match
-                matched_skills.append({
-                    'required': req_skill,
-                    'matched': best_match[0],
-                    'similarity': best_match[1]
-                })
-                total_score += best_match[1]
-
-        if not required_skills:
-            return 0, []
-
-        avg_score = (total_score / len(required_skills)) * 100
-        return avg_score, matched_skills
 
     def match_role(self, candidate_role, required_role):
         """Advanced role matching using context"""
