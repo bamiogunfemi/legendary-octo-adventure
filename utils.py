@@ -2,6 +2,29 @@ import pandas as pd
 import streamlit as st
 import re
 
+def extract_skills_from_text(text):
+    """Extract actual skills from descriptive text"""
+    # Common prefixes to remove
+    prefixes = [
+        'proficient in', 'experience with', 'experience in',
+        'knowledge of', 'hands-on experience with', 'expertise in',
+        'background in', 'skilled in', 'understanding of'
+    ]
+
+    # Clean the text
+    text = text.lower()
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            text = text[len(prefix):].strip()
+
+    # Remove common suffixes
+    text = re.sub(r'\s*\([^)]*\)', '', text)  # Remove parenthetical content
+    text = re.sub(r'(?:^|\s)(?:and|&|,)\s*', ',', text)  # Convert connectors to commas
+
+    # Split by commas and clean each part
+    skills = [s.strip(' .,') for s in text.split(',')]
+    return [s for s in skills if s and len(s) > 2]
+
 def parse_job_description(jd_text):
     """Parse job description text into structured format"""
     try:
@@ -24,7 +47,7 @@ def parse_job_description(jd_text):
 
             lower_line = line.lower()
 
-            # Role detection - look for specific sections
+            # Role detection
             if 'about the role' in lower_line:
                 # Get the next non-empty line as the role
                 for next_line in lines[lines.index(line) + 1:]:
@@ -34,9 +57,14 @@ def parse_job_description(jd_text):
                         break
                 continue
 
-            # Mark requirements section
-            if 'about you' in lower_line:
+            # Mark requirements sections
+            if any(section in lower_line for section in ['about you', 'requirements', 'skills needed', 'technical skills']):
                 in_requirements = True
+                skills_section = True
+                continue
+
+            if 'nice to have' in lower_line:
+                skills_section = False
                 continue
 
             # Experience detection
@@ -56,39 +84,26 @@ def parse_job_description(jd_text):
                             job_requirements['required_years'] = years
                             st.sidebar.info(f"✅ Required Experience: {years} years")
 
-                # Skills detection from bullet points
+                # Skills detection from bullet points or lists
                 if line.startswith(('•', '-', '*', '→')):
                     skill_line = line.lstrip('•-*→ \t').strip()
+                    if skills_section:  # Only process if in required skills section
+                        extracted_skills = extract_skills_from_text(skill_line)
+                        job_requirements['required_skills'].extend(extracted_skills)
 
-                    # Extract the actual skill
-                    if 'proficient in' in skill_line.lower():
-                        skill = skill_line.split('proficient in')[-1]
-                    elif 'experience with' in skill_line.lower():
-                        skill = skill_line.split('experience with')[-1]
-                    elif 'experience in' in skill_line.lower():
-                        skill = skill_line.split('experience in')[-1]
-                    elif 'knowledge of' in skill_line.lower():
-                        skill = skill_line.split('knowledge of')[-1]
-                    else:
-                        skill = skill_line
+        # Handle simple list format
+        if not job_requirements['required_skills']:
+            # Try to extract as a simple list of technologies
+            all_text = ' '.join(lines)
+            tech_list = re.findall(r'[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*', all_text)
+            common_techs = {'python', 'java', 'javascript', 'golang', 'react', 'node', 'aws', 'gcp', 'azure',
+                          'kubernetes', 'docker', 'terraform', 'jenkins', 'git', 'mongodb', 'postgresql',
+                          'mysql', 'redis', 'elasticsearch', 'kafka', 'rabbitmq', 'graphql', 'rest'}
+            tech_skills = [tech for tech in tech_list if tech.lower() in common_techs]
+            job_requirements['required_skills'].extend(tech_skills)
 
-                    # Clean up the skill
-                    skill = skill.strip(' .,')
-                    if skill and len(skill) > 2:
-                        job_requirements['required_skills'].append(skill)
-
-        # Clean up skills list
-        cleaned_skills = []
-        for skill in job_requirements['required_skills']:
-            # Remove parentheses and their contents
-            skill = re.sub(r'\(.*?\)', '', skill)
-            # Remove everything after period or comma
-            skill = re.sub(r'[.,].*$', '', skill)
-            skill = skill.strip()
-            if skill and len(skill) > 2:  # Only add non-empty skills
-                cleaned_skills.append(skill)
-
-        job_requirements['required_skills'] = cleaned_skills
+        # Remove duplicates while preserving order
+        job_requirements['required_skills'] = list(dict.fromkeys(job_requirements['required_skills']))
 
         # Default to "Backend Integration Engineer" if no role detected
         if not job_requirements['role'] and "backend integration engineer" in jd_text.lower():
@@ -107,9 +122,9 @@ def parse_job_description(jd_text):
             job_requirements['required_years'] = custom_years
             st.sidebar.info(f"✅ Updated Experience Requirement: {custom_years} years")
 
-        # Show parsed requirements
+        # Show parsed skills
         if job_requirements['required_skills']:
-            st.sidebar.info("✅ Detected Skills:")
+            st.sidebar.info("✅ Detected Required Skills:")
             for skill in job_requirements['required_skills']:
                 st.sidebar.markdown(f"• {skill}")
 
