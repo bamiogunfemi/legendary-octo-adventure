@@ -5,7 +5,11 @@ import streamlit as st
 
 class AIHelper:
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            st.warning("⚠️ OpenAI API key not found. Set the OPENAI_API_KEY environment variable.")
+            st.info("To set up the OpenAI API key, go to the Secrets tool in Replit and add OPENAI_API_KEY.")
+        self.client = OpenAI(api_key=api_key)
 
     def analyze_cv_content(self, cv_text, job_requirements):
         """

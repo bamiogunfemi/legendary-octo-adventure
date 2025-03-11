@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
-from utils import parse_job_description, prepare_export_data
+from utils import parse_job_description, prepare_export_data, calculate_years_experience
 from datetime import datetime
 
 def parse_document_for_experience(cv_url):
@@ -34,30 +34,7 @@ def parse_document_for_experience(cv_url):
         return None, "", str(e)
 
 
-def calculate_years_experience(cv_url=None, start_date_str=None):
-    """Calculate years of experience from CV or start date"""
-    try:
-        # Try to get start date from CV first
-        if cv_url and cv_url.strip():
-            start_date, first_line, error = parse_document_for_experience(cv_url)
-            if start_date:
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), first_line, None
-            elif error:
-                return 0, first_line, error
-
-        # Fallback to start date from sheet
-        if start_date_str and not pd.isna(start_date_str):
-            try:
-                start_date = pd.to_datetime(start_date_str)
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), None, None
-            except Exception as e:
-                return 0, None, f"Invalid date format: {str(e)}"
-
-        return 0, None, "No experience date provided"
-    except Exception as e:
-        return 0, None, f"Error calculating experience: {str(e)}"
+# Using calculate_years_experience from utils.py
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
