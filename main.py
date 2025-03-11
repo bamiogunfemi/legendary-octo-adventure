@@ -123,7 +123,7 @@ Nice to have
                     )
 
                     if first_line:
-                        st.write(f"First line: {first_line}")
+                        st.write(f"CV First Line: {first_line}")
 
                     # Create CV dictionary
                     cv_dict = {

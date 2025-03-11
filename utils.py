@@ -45,7 +45,7 @@ def parse_document_for_experience(cv_url):
     try:
         # Check if it's a Google Drive URL
         if 'drive.google.com' in cv_url:
-            # Extract file ID
+            # Extract file ID and download content using Google Drive API
             if '/file/d/' in cv_url:
                 file_id = cv_url.split('/file/d/')[1].split('/')[0]
             else:
@@ -54,7 +54,7 @@ def parse_document_for_experience(cv_url):
             # Use the direct download API endpoint
             creds_json = os.getenv('GOOGLE_CREDENTIALS')
             if not creds_json:
-                return None, None, "Google credentials not found"
+                return None, None, "Google credentials not found in environment variables"
 
             try:
                 creds_dict = json.loads(creds_json)
@@ -74,9 +74,9 @@ def parse_document_for_experience(cv_url):
                 content = file_buffer.read()
 
             except json.JSONDecodeError:
-                return None, None, "Invalid Google credentials format"
+                return None, None, "Invalid JSON format in Google credentials"
             except Exception as e:
-                return None, None, f"Google Drive access error: {str(e)}"
+                return None, None, f"Error accessing Google Drive: {str(e)}"
 
         else:
             # For non-Google Drive URLs
@@ -87,7 +87,7 @@ def parse_document_for_experience(cv_url):
             try:
                 response = requests.get(cv_url, headers=headers, verify=False)
                 if response.status_code != 200:
-                    return None, None, f"Failed to download file (Status {response.status_code})"
+                    return None, None, f"Failed to download file: Status {response.status_code}"
                 content = response.content
             except Exception as e:
                 return None, None, f"Download error: {str(e)}"
@@ -129,6 +129,7 @@ def parse_document_for_experience(cv_url):
 
         # Get first line
         first_line = text.strip().split('\n')[0] if text.strip() else "No content"
+        st.write(f"Extracted first line: {first_line}")  # Debug output
 
         # Look for experience section and dates
         experience_patterns = [
