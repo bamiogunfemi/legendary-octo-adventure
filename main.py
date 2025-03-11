@@ -11,22 +11,22 @@ def parse_document_for_experience(cv_url):
         if not cv_url or not cv_url.strip():
             st.warning("No CV URL provided")
             return datetime(2020,1,1), "No CV URL", None
-            
+
         # Log the CV URL being processed
         st.write(f"Processing CV URL: {cv_url}")
-        
+
         # Import utilities for document parsing
         from utils import parse_document_for_experience as utils_parse_document
-        
+
         # Use the implementation from utils
         start_date, first_line, error = utils_parse_document(cv_url)
-        
+
         # If there's content available from utils parsing, display it
         if error and "CV Content" not in error:
             # Show placeholder data since we couldn't parse the actual CV
             st.write("Using placeholder data due to parsing error:", error)
             return datetime(2020,1,1), "Placeholder First Line", error
-            
+
         return start_date or datetime(2020,1,1), first_line or "Placeholder First Line", error
 
     except Exception as e:
@@ -34,30 +34,30 @@ def parse_document_for_experience(cv_url):
         return None, "", str(e)
 
 
-def calculate_years_experience(cv_url, start_date_str):
+def calculate_years_experience(cv_url=None, start_date_str=None):
     """Calculate years of experience from CV or start date"""
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            start_date, first_line, exp_error = parse_document_for_experience(cv_url)
+            start_date, first_line, error = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
                 return round(years_exp, 1), first_line, None
-            elif exp_error:
-                return 0, first_line, exp_error
+            elif error:
+                return 0, first_line, error
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
             try:
                 start_date = pd.to_datetime(start_date_str)
                 years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), "", None
+                return round(years_exp, 1), None, None
             except Exception as e:
-                return 0, "", f"Invalid date format: {str(e)}"
+                return 0, None, f"Invalid date format: {str(e)}"
 
-        return 0, "", "No experience date provided"
+        return 0, None, "No experience date provided"
     except Exception as e:
-        return 0, "", str(e)
+        return 0, None, f"Error calculating experience: {str(e)}"
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -153,11 +153,11 @@ Nice to have
 
                     cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
-                    
+
                     # Create an expander for each CV to contain the details
                     with st.expander(f"Processing CV {index + 1}: {cv_name}", expanded=True):
                         st.write(f"**CV Link:** {cv_link}")
-                        
+
                         # Log additional CV information if available
                         if 'PHONE' in row:
                             st.write(f"**Phone:** {row.get('PHONE', '')}")

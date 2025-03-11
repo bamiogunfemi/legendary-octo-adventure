@@ -123,18 +123,18 @@ def parse_document_for_experience(cv_url):
 
             # Log the content
             st.markdown("### CV Content")
-            
+
             # Display full text in an expander
             with st.expander("View Full CV Text", expanded=True):
                 st.text_area("CV Text", text, height=400)
-                
+
             # Display summary in main view
             st.write("CV Content (first 1000 characters):")
             st.text(text[:1000] + "..." if len(text) > 1000 else text)
 
             if not text.strip():
                 return None, None, "No text content found in document"
-                
+
             # Return CV text with error message to be used for skills extraction
             cv_text_info = f"CV Content: {text}"
 
@@ -177,13 +177,13 @@ def parse_document_for_experience(cv_url):
                             date_str = match.group(1)
                             try:
                                 if '/' in date_str:
-                                    return datetime.strptime(date_str, '%m/%Y'), first_line, None
+                                    return datetime.strptime(date_str, '%m/%Y'), first_line, cv_text_info
                                 else:
-                                    return datetime.strptime(date_str, '%Y'), first_line, None
+                                    return datetime.strptime(date_str, '%Y'), first_line, cv_text_info
                             except ValueError:
                                 continue
 
-            return None, first_line, cv_text_info if 'cv_text_info' in locals() else "No valid experience dates found"
+            return None, first_line, cv_text_info
 
         except Exception as e:
             return None, None, f"Error processing document: {str(e)}"
