@@ -98,30 +98,47 @@ class ScoringEngine:
         """Main evaluation function with detailed reasoning"""
         try:
             reasons = []
+            notes = []
 
-            # Check core role alignment with advanced NLP
+            # Check core role alignment
             alignment_score = self.check_core_alignment(
                 cv_data.get('current_role', ''),
                 job_requirements.get('role', '')
             )
 
-            # Skills evaluation with advanced NLP
+            # Skills evaluation with detailed matching
             skills_score, skills_result = self.score_skills_match(
                 cv_data.get('skills', []),
                 job_requirements.get('required_skills', []),
-                cv_data.get('cv_text', ''),  # Add CV text for skill extraction
+                cv_data.get('cv_text', ''),
                 job_requirements.get('nice_to_have_skills', [])
             )
 
+            # Process skill matching results
+            matched_required = []
+            matched_nice_to_have = []
+            missing_critical = []
+
             if isinstance(skills_result, dict):
-                cv_data['extracted_skills'] = skills_result.get('all_skills', [])
-                skills_reason = skills_result.get('score_details', '')
-            else:
-                cv_data['extracted_skills'] = []
-                skills_reason = str(skills_result)
+                all_skills = set(skills_result.get('all_skills', []))
+                required_skills = set(job_requirements.get('required_skills', []))
+                nice_to_have = set(job_requirements.get('nice_to_have_skills', []))
+
+                # Find matched and missing skills
+                matched_required = list(all_skills.intersection(required_skills))
+                matched_nice_to_have = list(all_skills.intersection(nice_to_have))
+                missing_critical = list(required_skills - all_skills)
+
+                # Add to notes
+                if matched_required:
+                    notes.append(f"Matches {len(matched_required)} required skills")
+                if matched_nice_to_have:
+                    notes.append(f"Has {len(matched_nice_to_have)} nice-to-have skills")
+                if missing_critical:
+                    notes.append(f"Missing {len(missing_critical)} critical skills")
 
             if skills_score < 50:
-                reasons.append(f"Skills: {skills_reason}")
+                reasons.append(f"Skills: Missing critical skills")
 
             # Experience evaluation
             exp_score, exp_reason = self.score_experience_match(
@@ -130,6 +147,8 @@ class ScoringEngine:
             )
             if exp_score < 50:
                 reasons.append(f"Experience: {exp_reason}")
+            else:
+                notes.append(exp_reason)
 
             # Apply alignment cap if needed
             if alignment_score < 50:
@@ -145,7 +164,10 @@ class ScoringEngine:
                 'skills_score': skills_score,
                 'experience_score': exp_score,
                 'alignment_score': alignment_score,
-                'extracted_skills': cv_data.get('extracted_skills', []),
+                'matched_required_skills': matched_required,
+                'matched_nice_to_have': matched_nice_to_have,
+                'missing_critical_skills': missing_critical,
+                'evaluation_notes': '; '.join(notes),
                 'reasons': reasons if reasons else []
             }
 
@@ -158,6 +180,9 @@ class ScoringEngine:
                 'skills_score': 0,
                 'experience_score': 0,
                 'alignment_score': 0,
-                'extracted_skills': [],
+                'matched_required_skills': [],
+                'matched_nice_to_have': [],
+                'missing_critical_skills': [],
+                'evaluation_notes': f'Error during evaluation: {str(e)}',
                 'reasons': ['Error during evaluation: ' + str(e)]
             }

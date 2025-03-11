@@ -45,7 +45,6 @@ def main():
     • testing 
     • Github Actions.
 
-
 Nice to have
    • Golang 
    • including IaC (Terraform, CloudFormation).
@@ -58,7 +57,7 @@ Nice to have
         help="Enter the complete job description including required skills and experience"
     )
 
-    # Years of experience input before the evaluate button
+    # Years of experience input
     years_exp = st.sidebar.number_input(
         "Required Years of Experience",
         min_value=0,
@@ -89,7 +88,7 @@ Nice to have
             with st.spinner("Fetching CV data..."):
                 # Parse job requirements
                 job_requirements = parse_job_description(jd_text, years_exp)
-                job_requirements['role'] = role  # Override role with user input
+                job_requirements['role'] = role
 
                 # Fetch CV data
                 cv_data = google_client.get_sheet_data(sheet_id, sheet_range)
@@ -114,43 +113,41 @@ Nice to have
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
                     st.write(f"Processing CV {index + 1}: {row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}")
 
-                    # Calculate years of experience with error handling
+                    # Calculate years of experience
                     years_exp, exp_error = calculate_years_experience(
                         cv_url=cv_link,
                         start_date_str=row.get('Experience Start Date', '')
                     )
 
-                    # Create CV dictionary with basic info
+                    # Create CV dictionary
                     cv_dict = {
                         'name': f"{str(row.get('FIRST NAME', '')).strip()} {str(row.get('LAST NAME', '')).strip()}",
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
+                        'current_role': str(row.get('Current Role', '')).strip(),
                         'years_experience': years_exp,
-                        'current_role': str(row.get('Current Role', '')).strip(),  # Add current role
                         'skills': []
                     }
-
-                    # Process skills from dedicated column
-                    skills = row.get('Skills', '')
-                    if isinstance(skills, str) and skills.strip():
-                        cv_dict['skills'] = [s.strip() for s in skills.split(',') if s.strip()]
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
 
-                    # Combine basic info with evaluation results
+                    # Combine results
                     evaluation = {
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
                         'current_role': cv_dict['current_role'],
                         'years_experience': years_exp,
-                        'extracted_skills': ', '.join(result.get('extracted_skills', [])),  # Add extracted skills
+                        'required_skills': ', '.join(result.get('matched_required_skills', [])),
+                        'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
+                        'missing_skills': ', '.join(result.get('missing_critical_skills', [])),
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
                         'alignment_score': result['alignment_score'],
-                        'document_errors': exp_error if exp_error else ''
+                        'document_errors': exp_error if exp_error else '',
+                        'notes': result.get('evaluation_notes', '')
                     }
 
                     # Add reasons for not suitable candidates
@@ -161,14 +158,18 @@ Nice to have
                         reasons.extend(result['reasons'])
 
                     evaluation['reasons_not_suitable'] = '\n'.join(reasons) if reasons else ''
-
                     results.append(evaluation)
 
-                # Hide progress bar after completion
+                # Hide progress bar
                 progress_bar.empty()
 
-                # Prepare results for display
-                results_df = prepare_export_data(results)
+                # Sort results by overall score
+                results_df = pd.DataFrame(results)
+                results_df = results_df.sort_values('overall_score', ascending=False)
+
+                # Highlight top 5 candidates
+                results_df['is_top_5'] = False
+                results_df.loc[results_df.index[:5], 'is_top_5'] = True
 
                 # Display results
                 st.header("Evaluation Results")
@@ -178,7 +179,7 @@ Nice to have
                 with col1:
                     st.metric("CVs Processed", len(results))
                 with col2:
-                    suitable_count = len(results_df[results_df['status'] != 'Not Suitable'])
+                    suitable_count = len(results_df[results_df['overall_score'] >= 60])
                     st.metric("Suitable Candidates", suitable_count)
                 with col3:
                     avg_score = results_df['overall_score'].mean()
@@ -189,25 +190,33 @@ Nice to have
 
                 # Detailed results table
                 st.write("### Detailed Results")
+
+                # Style the dataframe
+                def highlight_top_5(row):
+                    return ['background-color: #90EE90' if row['is_top_5'] else '' for _ in row]
+
+                styled_df = results_df.style.apply(highlight_top_5, axis=1)
+
                 st.dataframe(
-                    results_df,
+                    styled_df,
                     column_config={
                         "name": "Name",
                         "email": "Email",
                         "cv_link": st.column_config.LinkColumn("CV Link"),
                         "current_role": "Current Role",
                         "years_experience": "Years of Experience",
-                        "extracted_skills": st.column_config.TextColumn(
-                            "Technical Skills",
-                            help="Automatically extracted technical skills from CV"
-                        ),
+                        "required_skills": "Required Skills Found",
+                        "nice_to_have_skills": "Nice-to-Have Skills",
+                        "missing_skills": "Missing Critical Skills",
                         "overall_score": st.column_config.NumberColumn(
-                            "Overall Score",
+                            "Match Score (%)",
                             format="%.2f"
                         ),
                         "status": "Status",
                         "document_errors": "CV Processing Issues",
-                        "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons")
+                        "notes": "Evaluation Notes",
+                        "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons"),
+                        "is_top_5": None  # Hide this column
                     }
                 )
 
