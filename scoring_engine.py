@@ -3,20 +3,12 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import re
+from nlp_matcher import NLPMatcher
 
 class ScoringEngine:
     def __init__(self):
-        # Download required NLTK data
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            nltk.download('punkt', quiet=True)
-
-        try:
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            nltk.download('stopwords', quiet=True)
-
+        # Initialize NLP matcher
+        self.nlp_matcher = NLPMatcher()
         self.stop_words = set(stopwords.words('english'))
 
     def preprocess_text(self, text):
@@ -30,49 +22,44 @@ class ScoringEngine:
         return " ".join(tokens)
 
     def check_core_alignment(self, candidate_role, required_role):
-        """Check core role alignment"""
+        """Check core role alignment using advanced NLP"""
         try:
-            candidate_role = self.preprocess_text(str(candidate_role))
-            required_role = self.preprocess_text(str(required_role))
-
-            if not required_role:
-                return 100  # If no required role specified, assume full alignment
-
-            common_words = set(candidate_role.split()) & set(required_role.split())
-            total_words = set(required_role.split())
-
-            if not total_words:
-                return 100
-            return len(common_words) / len(total_words) * 100
+            alignment_score, reason = self.nlp_matcher.match_role(
+                str(candidate_role),
+                str(required_role)
+            )
+            return alignment_score
         except Exception as e:
             print(f"Error in core alignment check: {str(e)}")
             return 0
 
     def score_skills_match(self, candidate_skills, required_skills):
-        """Score skills match according to framework"""
+        """Score skills match using advanced NLP"""
         try:
             if not candidate_skills or not required_skills:
                 return 0, "No skills provided"
 
-            candidate_skills = set(map(str.lower, [s.strip() for s in candidate_skills if s.strip()]))
-            required_skills = set(map(str.lower, [s.strip() for s in required_skills if s.strip()]))
+            # Clean and normalize skills
+            candidate_skills = [s.strip() for s in candidate_skills if s.strip()]
+            required_skills = [s.strip() for s in required_skills if s.strip()]
 
             if not required_skills:
                 return 50, "No required skills specified"
 
-            matches = len(candidate_skills & required_skills)
-            total_required = len(required_skills)
-            match_percentage = (matches / total_required) * 100
+            # Get advanced NLP match score
+            match_score, matched_skills = self.nlp_matcher.match_skills(
+                candidate_skills,
+                required_skills
+            )
 
-            # Essential Skills Coverage (50 points)
-            if match_percentage == 100:
-                return 100, "All required skills present"
-            elif match_percentage >= 75:
-                return 75, f"Has {matches}/{total_required} required skills"
-            elif match_percentage >= 50:
-                return 50, f"Has {matches}/{total_required} required skills"
+            # Generate detailed feedback
+            if match_score >= 80:
+                return match_score, "Strong match with required skills"
+            elif match_score >= 60:
+                return match_score, f"Partial match with {len(matched_skills)} out of {len(required_skills)} required skills"
             else:
-                return 25, f"Missing most required skills ({matches}/{total_required})"
+                missing_skills = set(required_skills) - {m['matched'] for m in matched_skills}
+                return match_score, f"Missing key skills: {', '.join(missing_skills)}"
 
         except Exception as e:
             print(f"Error in skills match: {str(e)}")
@@ -100,13 +87,13 @@ class ScoringEngine:
         try:
             reasons = []
 
-            # Check core role alignment
+            # Check core role alignment with advanced NLP
             alignment_score = self.check_core_alignment(
                 cv_data.get('current_role', ''),
                 job_requirements.get('role', '')
             )
 
-            # Skills evaluation
+            # Skills evaluation with advanced NLP
             skills_score, skills_reason = self.score_skills_match(
                 cv_data.get('skills', []),
                 job_requirements.get('required_skills', [])
