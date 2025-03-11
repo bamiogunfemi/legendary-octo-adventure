@@ -15,10 +15,18 @@ def main():
 
     # Sidebar for job description input
     st.sidebar.header("Job Description")
+
+    # Role input
+    role = st.sidebar.text_input(
+        "Role Title",
+        value="Backend Integration Engineer",
+        help="Enter the role title"
+    )
+
     jd_text = st.sidebar.text_area(
         "Enter Job Description",
         height=300,
-        help="Enter the complete job description including role, required skills, experience, and certifications"
+        help="Enter the complete job description including required skills and experience"
     )
 
     # Years of experience input before the evaluate button
@@ -51,6 +59,7 @@ def main():
             with st.spinner("Fetching CV data..."):
                 # Parse job requirements
                 job_requirements = parse_job_description(jd_text, years_exp)
+                job_requirements['role'] = role  # Override role with user input
                 st.sidebar.write("Parsed Job Requirements:", job_requirements)
 
                 # Fetch CV data
@@ -65,9 +74,8 @@ def main():
                 for _, row in cv_data.iterrows():
                     # Create CV dictionary with basic info
                     cv_dict = {
-                        'name': str(row.get('Name', row.get('name', ''))).strip(),
-                        'email': str(row.get('Email', row.get('email', ''))).strip(),
-                        'current_role': str(row.get('Current Role', row.get('current_role', ''))).strip(),
+                        'name': f"{str(row.get('FIRST NAME', '')).strip()} {str(row.get('LAST NAME', '')).strip()}",
+                        'email': str(row.get('EMAIL', '')).strip(),
                         'years_experience': str(row.get('Years of Experience', row.get('years_experience', 0))).strip(),
                         'skills': [],
                         'certifications': []
@@ -90,7 +98,6 @@ def main():
                     evaluation = {
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
-                        'current_role': cv_dict['current_role'],
                         'overall_score': result['overall_score'],
                         'skills_score': result['skills_score'],
                         'experience_score': result['experience_score'],
@@ -129,7 +136,6 @@ def main():
                     column_config={
                         "name": "Name",
                         "email": "Email",
-                        "current_role": "Current Role",
                         "overall_score": st.column_config.NumberColumn("Overall Score", format="%.2f"),
                         "status": "Status",
                         "reasons_not_suitable": st.column_config.TextColumn("Reasons (if not suitable)")
