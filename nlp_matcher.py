@@ -151,7 +151,7 @@ class NLPMatcher:
         for req_skill in required_skills:
             # Find best matching candidate skill
             best_match = max(
-                [(cand_skill, self.get_skill_similarity(cand_skill, req_skill)) 
+                [(cand_skill, self.get_skill_similarity(cand_skill, req_skill))
                  for cand_skill in candidate_skills],
                 key=lambda x: x[1]
             )

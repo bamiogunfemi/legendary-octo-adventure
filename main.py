@@ -181,6 +181,10 @@ Nice to have
                         'cv_text': exp_error if "CV Content" in str(exp_error) else ''
                     }
 
+                    # Extract CV content from error message if present
+                    if exp_error and "CV Content:" in exp_error:
+                        cv_dict['cv_text'] = exp_error.split("CV Content:", 1)[1].strip()
+
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
 
