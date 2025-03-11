@@ -122,6 +122,13 @@ def parse_document_for_experience(cv_url):
                 return None, None, "Unsupported file format"
 
             # Log the content
+            st.markdown("### CV Content")
+            
+            # Display full text in an expander
+            with st.expander("View Full CV Text", expanded=True):
+                st.text_area("CV Text", text, height=400)
+                
+            # Display summary in main view
             st.write("CV Content (first 1000 characters):")
             st.text(text[:1000] + "..." if len(text) > 1000 else text)
 
