@@ -320,7 +320,7 @@ def prepare_export_data(results):
 
     # Reorder columns to show candidate info first
     columns_order = [
-        'name', 'email', 'cv_link', 'years_experience', 'skills',
+        'name', 'email', 'cv_link', 'current_role', 'years_experience', 'skills',
         'overall_score', 'status',
         'skills_score', 'experience_score',
         'alignment_score', 'reasons_not_suitable', 'document_errors'
@@ -341,10 +341,9 @@ def prepare_export_data(results):
     if 'document_errors' not in export_df.columns:
         export_df['document_errors'] = ''
 
-    # Reorder columns and fill any missing columns with empty strings
+    # Ensure all columns are present and in the right order
     for col in columns_order:
         if col not in export_df.columns:
             export_df[col] = ''
 
-    # Ensure all columns are present and in the right order
     return export_df[columns_order]
