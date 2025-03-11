@@ -134,6 +134,9 @@ def parse_document_for_experience(cv_url):
 
             if not text.strip():
                 return None, None, "No text content found in document"
+                
+            # Return CV text with error message to be used for skills extraction
+            cv_text_info = f"CV Content: {text}"
 
             # Get the first non-empty line
             first_line = None
@@ -180,7 +183,7 @@ def parse_document_for_experience(cv_url):
                             except ValueError:
                                 continue
 
-            return None, first_line, "No valid experience dates found"
+            return None, first_line, cv_text_info if 'cv_text_info' in locals() else "No valid experience dates found"
 
         except Exception as e:
             return None, None, f"Error processing document: {str(e)}"

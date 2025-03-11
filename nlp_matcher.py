@@ -37,40 +37,36 @@ class NLPMatcher:
             self.lemmatizer = None
 
     def extract_technical_skills(self, text):
-        """Extract technical skills from text using pre-defined patterns"""
-        if not isinstance(text, str):
+        """Extract technical skills from CV text"""
+        if not text:
             return []
 
-        text = text.lower()
-        found_skills = set()
+        # Check if text starts with "CV Content:" prefix and extract the actual content
+        if isinstance(text, str) and text.startswith("CV Content:"):
+            text = text[len("CV Content:"):].strip()
 
-        # Extract skills using patterns
-        for category, pattern in self.tech_skills_patterns.items():
-            matches = re.finditer(pattern, text)
-            for match in matches:
-                skill = match.group()
-                # Normalize some common variations
-                skill = {
-                    'node.js': 'nodejs',
-                    'react.js': 'react',
-                    'vue.js': 'vue'
-                }.get(skill, skill)
-                found_skills.add(skill)
-
-        # Additional common technology keywords
-        tech_keywords = {
-            'api', 'rest', 'graphql', 'microservices', 'sql', 'nosql',
-            'linux', 'unix', 'bash', 'shell', 'css', 'html', 'http',
-            'websocket', 'oauth', 'jwt', 'xml', 'json', 'yaml',
-            'git', 'cicd', 'devops', 'backend', 'frontend', 'fullstack'
+        common_tech_terms = {
+            'python', 'java', 'javascript', 'typescript', 'php', 'ruby', 'c++', 'c#', 'go', 'golang', 'rust', 'perl',
+            'swift', 'kotlin', 'scala', 'haskell', 'dart', 'react', 'angular', 'vue', 'next.js', 'gatsby',
+            'node.js', 'express', 'django', 'flask', 'spring', 'laravel', 'rails', 'asp.net',
+            'sql', 'mysql', 'postgresql', 'mongodb', 'oracle', 'sqlite', 'redis', 'cassandra', 'dynamodb',
+            'aws', 'azure', 'gcp', 'google cloud', 'firebase', 'serverless', 'lambda', 'ec2', 's3',
+            'docker', 'kubernetes', 'istio', 'jenkins', 'gitlab ci', 'github actions', 'circleci', 'travis',
+            'terraform', 'ansible', 'chef', 'puppet', 'prometheus', 'grafana', 'elk', 'logstash',
+            'git', 'svn', 'mercurial', 'jira', 'confluence', 'trello', 'notion', 'bitbucket',
+            'rest', 'restful', 'api', 'graphql', 'soap', 'microservices', 'oauth', 'jwt', 'saml', 'http', 'https', 'tcp/ip',
+            'agile', 'scrum', 'kanban', 'tdd', 'bdd', 'ci/cd', 'devops', 'sre', 'iac', 'webhooks',
+            'argocd', 'postgres', 'testing', 'cloudformation'
         }
 
-        # Look for technology keywords
-        words = set(word_tokenize(text))
-        tech_found = words.intersection(tech_keywords)
-        found_skills.update(tech_found)
+        text = text.lower()
+        found_skills = []
 
-        return sorted(list(found_skills))
+        for skill in common_tech_terms:
+            if re.search(r'\b' + re.escape(skill) + r'\b', text):
+                found_skills.append(skill)
+
+        return found_skills
 
     def preprocess_text(self, text):
         """Advanced text preprocessing"""

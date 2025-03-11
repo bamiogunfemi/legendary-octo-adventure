@@ -177,7 +177,8 @@ Nice to have
                         'cv_link': cv_link,
                         'first_line': first_line,
                         'years_experience': years_exp,
-                        'skills': []
+                        'skills': [],
+                        'cv_text': exp_error if "CV Content" in str(exp_error) else ''
                     }
 
                     # Evaluate CV

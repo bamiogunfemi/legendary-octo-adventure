@@ -106,11 +106,14 @@ class ScoringEngine:
                 job_requirements.get('role', '')
             )
 
+            # Extract CV text from cv_data or error field
+            cv_text = cv_data.get('cv_text', '')
+            
             # Skills evaluation with detailed matching
             skills_score, skills_result = self.score_skills_match(
                 cv_data.get('skills', []),
                 job_requirements.get('required_skills', []),
-                cv_data.get('cv_text', ''),
+                cv_text,
                 job_requirements.get('nice_to_have_skills', [])
             )
 
