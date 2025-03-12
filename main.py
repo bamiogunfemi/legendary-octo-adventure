@@ -116,6 +116,10 @@ Nice to have
                         start_date_str=row.get('Experience Start Date', '')
                     )
 
+                    # Debug logging
+                    st.write("Debug: CV Content Type:", type(cv_content))
+                    st.write("Debug: CV Content Length:", len(cv_content) if isinstance(cv_content, str) else "N/A")
+
                     # Create CV dictionary
                     cv_dict = {
                         'name': cv_name,
@@ -124,8 +128,11 @@ Nice to have
                         'first_line': first_line,
                         'years_experience': years_exp,
                         'skills': [],
-                        'cv_text': cv_content if isinstance(cv_content, str) else ''
+                        'cv_text': cv_content if isinstance(cv_content, str) and not cv_content.startswith("Error") else ''
                     }
+
+                    # Debug logging
+                    st.write("Debug: CV Text in Dictionary:", bool(cv_dict['cv_text']))
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
@@ -141,7 +148,7 @@ Nice to have
                         'nice_to_have_skills': result.get('matched_nice_to_have', []),  # Get as list
                         'missing_skills': result.get('missing_critical_skills', []),
                         'overall_score': result['overall_score'],
-                        'document_errors': cv_content if cv_content and "Error" in str(cv_content) else '',
+                        'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else '',
                         'notes': result.get('evaluation_notes', '')
                     }
 
