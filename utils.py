@@ -5,6 +5,7 @@ from PyPDF2 import PdfReader
 from datetime import datetime
 import io
 import requests
+from docx import Document
 import mimetypes
 import os
 import json
@@ -33,126 +34,161 @@ def get_google_drive_file_url(url):
             st.warning(f"Could not extract file ID from URL: {url}")
             return None
 
-        st.write(f"Extracted Google Drive file ID: {file_id}")
-        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-        st.write(f"Generated download URL: {download_url}")
-        return download_url
+        # Return direct view URL instead of download URL
+        return f"https://drive.google.com/file/d/{file_id}/view"
     except Exception as e:
         st.warning(f"Error processing Google Drive URL: {str(e)}")
         return None
 
 def parse_document_for_experience(cv_url):
-    """Parse PDF/DOC CV to extract content and first non-freelance experience date"""
+    """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
+        # Check if it's a Google Drive URL
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
 
+        # Debug output
         st.write("Processing CV URL:", cv_url)
 
-        # Convert Google Drive URL if needed
-        original_url = cv_url
         if 'drive.google.com' in cv_url:
-            cv_url = get_google_drive_file_url(cv_url)
-            if not cv_url:
-                return None, None, f"Could not process Google Drive URL: {original_url}"
-            st.write("Using converted Google Drive URL:", cv_url)
-
-        # For local testing, try to read from attached_assets
-        content = None
-        try:
-            local_path = cv_url
-            if not cv_url.startswith('attached_assets/'):
-                local_path = os.path.join('attached_assets', os.path.basename(cv_url))
-
-            st.write(f"Looking for PDF at path: {local_path}")
-            if os.path.exists(local_path):
-                st.write(f"✅ Found file at {local_path}")
-                with open(local_path, 'rb') as file:
-                    content = file.read()
-                st.write(f"Successfully read {len(content)} bytes from local file")
+            # Extract file ID and download content using Google Drive API
+            if '/file/d/' in cv_url:
+                file_id = cv_url.split('/file/d/')[1].split('/')[0]
             else:
-                st.write("Local file not found, attempting download...")
-                # Try as URL
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
+                file_id = cv_url.split('id=')[1].split('&')[0]
+
+            # Use the direct download API endpoint
+            creds_json = os.getenv('GOOGLE_CREDENTIALS')
+            if not creds_json:
+                return None, None, "Google credentials not found"
+
+            try:
+                creds_dict = json.loads(creds_json)
+                credentials = service_account.Credentials.from_service_account_info(
+                    creds_dict, scopes=['https://www.googleapis.com/auth/drive.readonly']
+                )
+
+                # Build the Drive API service
+                service = build('drive', 'v3', credentials=credentials)
+
+                # Get the file metadata first
+                file_metadata = service.files().get(fileId=file_id, fields='mimeType').execute()
+                mime_type = file_metadata.get('mimeType', '')
+
+                # Get the file content
+                request = service.files().get_media(fileId=file_id)
+                file_buffer = io.BytesIO()
+                downloader = request.execute()
+                file_buffer.write(downloader)
+                file_buffer.seek(0)
+                content = file_buffer.read()
+
+                # Log metadata for debugging
+                st.write("File MIME Type:", mime_type)
+
+            except json.JSONDecodeError:
+                return None, None, "Invalid JSON format in Google credentials"
+            except Exception as e:
+                return None, None, f"Error accessing Google Drive: {str(e)}"
+
+        else:
+            # For non-Google Drive URLs
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            }
+            try:
                 response = requests.get(cv_url, headers=headers, verify=False)
-
-                # Log response details
-                st.write(f"Download response status: {response.status_code}")
-                st.write("Response headers:", response.headers.get('content-type', 'No content-type'))
-
                 if response.status_code != 200:
                     return None, None, f"Failed to download file: Status {response.status_code}"
-
                 content = response.content
-                st.write(f"Downloaded {len(content)} bytes")
+            except Exception as e:
+                return None, None, f"Download error: {str(e)}"
 
-                # Check content type
-                content_type = response.headers.get('content-type', '').lower()
-                if 'pdf' not in content_type and not content.startswith(b'%PDF'):
-                    st.error(f"Invalid content type: {content_type}")
-                    return None, None, f"Downloaded file is not a PDF (content-type: {content_type})"
-
-        except Exception as e:
-            st.error(f"File access error: {str(e)}")
-            return None, None, f"File access error: {str(e)}"
-
-        # Process PDF content
+        # Process the file based on type
         text = ""
         try:
-            if not content:
-                return None, None, "No content received from file"
+            # Check if it's a PDF
+            if content.startswith(b'%PDF'):
+                pdf_reader = PdfReader(io.BytesIO(content))
+                for page in pdf_reader.pages:
+                    text += page.extract_text() + "\n"
+            # Check if it's a DOCX
+            elif content.startswith(b'PK\x03\x04'):
+                doc = Document(io.BytesIO(content))
+                for para in doc.paragraphs:
+                    text += para.text + "\n"
+            else:
+                return None, None, "Unsupported file format"
 
-            st.write("\nAttempting to parse PDF content...")
-
-            # Validate PDF content
-            if not content.startswith(b'%PDF'):
-                st.error("File does not start with PDF signature")
-                return None, None, "Invalid PDF format - missing PDF signature"
-
-            pdf_reader = PdfReader(io.BytesIO(content))
-            st.write(f"PDF has {len(pdf_reader.pages)} pages")
-            total_chars = 0
-
-            for page_num, page in enumerate(pdf_reader.pages, 1):
-                try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
-                        total_chars += len(page_text)
-                        st.write(f"Page {page_num}: Successfully extracted {len(page_text)} characters")
-                    else:
-                        st.warning(f"Page {page_num}: No text extracted")
-                except Exception as e:
-                    st.error(f"Error extracting text from page {page_num}: {str(e)}")
-
-            st.write(f"\nTotal characters extracted from PDF: {total_chars}")
+            # Log the content
+            st.markdown("### CV Content")
+            
+            # Display full text in an expander
+            with st.expander("View Full CV Text", expanded=True):
+                st.text_area("CV Text", text, height=400)
+                
+            # Display summary in main view
+            st.write("CV Content (first 1000 characters):")
+            st.text(text[:1000] + "..." if len(text) > 1000 else text)
 
             if not text.strip():
-                st.error("No text content could be extracted from PDF")
-                return None, None, "No text content could be extracted from PDF"
-
-            # Create the CV content with prefix
-            cv_content = f"CV Content: {text}"
+                return None, None, "No text content found in document"
+                
+            # Return CV text with error message to be used for skills extraction
+            cv_text_info = f"CV Content: {text}"
 
             # Get the first non-empty line
             first_line = None
             for line in text.split('\n'):
                 if line.strip():
                     first_line = line.strip()
-                    st.write("\nFirst Line:", first_line)
+                    st.write("First Line Found:", first_line)
                     break
 
-            st.write("\nSuccessfully extracted CV content")
-            return None, first_line, cv_content
+            if not first_line:
+                return None, None, "No readable content found"
+
+            # Look for experience section and dates
+            lines = text.split('\n')
+            experience_patterns = [
+                r"(?:Experience|Work History|Employment|Career History)",
+                r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
+                r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
+            ]
+
+            # Find first non-freelance role date
+            current_section = ""
+            for line in lines:
+                # Check if this is the experience section
+                if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
+                    current_section = "experience"
+                    continue
+
+                if current_section == "experience":
+                    # Skip if it's a freelance role
+                    if re.search(r"freelance|contract", line, re.IGNORECASE):
+                        continue
+
+                    # Look for date patterns
+                    for pattern in experience_patterns[1:]:
+                        match = re.search(pattern, line)
+                        if match:
+                            date_str = match.group(1)
+                            try:
+                                if '/' in date_str:
+                                    return datetime.strptime(date_str, '%m/%Y'), first_line, None
+                                else:
+                                    return datetime.strptime(date_str, '%Y'), first_line, None
+                            except ValueError:
+                                continue
+
+            return None, first_line, cv_text_info if 'cv_text_info' in locals() else "No valid experience dates found"
 
         except Exception as e:
-            st.error(f"Error processing document content: {str(e)}")
             return None, None, f"Error processing document: {str(e)}"
 
     except Exception as e:
-        st.error(f"Error in parse_document_for_experience: {str(e)}")
         return None, None, f"Error processing document: {str(e)}"
 
 def calculate_years_experience(cv_url=None, start_date_str=None):
@@ -160,16 +196,12 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            st.write("Calculating experience from CV:", cv_url)
-            start_date, first_line, cv_text = parse_document_for_experience(cv_url)
-
+            start_date, first_line, error = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
-                st.write(f"Calculated {years_exp:.1f} years of experience")
-                return round(years_exp, 1), first_line, cv_text
-            elif cv_text and "CV Content:" in cv_text:
-                # Even if no date found, return the CV text for skill analysis
-                return 0, first_line, cv_text
+                return round(years_exp, 1), first_line, None
+            elif error:
+                return 0, first_line, error
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
@@ -180,10 +212,9 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
             except Exception as e:
                 return 0, None, f"Invalid date format: {str(e)}"
 
-        return 0, None, "No valid experience date or CV content found"
+        return 0, None, "No experience date provided"
     except Exception as e:
-        st.error(f"Error calculating experience: {str(e)}")
-        return 0, None, str(e)
+        return 0, None, f"Error calculating experience: {str(e)}"
 
 def extract_skills_from_text(text):
     """Extract actual skills from descriptive text"""

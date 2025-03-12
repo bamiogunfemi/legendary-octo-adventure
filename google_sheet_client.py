@@ -17,8 +17,6 @@ class GoogleSheetClient:
         """Initialize Google Sheets API credentials from environment variables"""
         creds_json = os.getenv('GOOGLE_CREDENTIALS')
         if not creds_json:
-            st.sidebar.error("⚠️ Google credentials not found. Set the GOOGLE_CREDENTIALS environment variable.")
-            st.sidebar.info("To set up Google credentials, go to the Secrets tool in Replit and add your service account JSON as GOOGLE_CREDENTIALS.")
             raise ValueError("Google credentials not found in environment variables")
 
         try:
