@@ -199,25 +199,94 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            start_date, first_line, cv_content = parse_document_for_experience(cv_url)
-            if start_date:
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), first_line, cv_content
-            elif cv_content:
-                return 0, first_line, cv_content
-            elif isinstance(cv_content, str):
-                return 0, first_line, cv_content
+            # Get CV content
+            _, _, cv_content = parse_document_for_experience(cv_url)
 
-        # Fallback to start date from sheet
-        if start_date_str and not pd.isna(start_date_str):
-            try:
-                start_date = pd.to_datetime(start_date_str)
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), None, None
-            except Exception as e:
-                return 0, None, f"Invalid date format: {str(e)}"
+            if not cv_content:
+                return 0, None, "No CV content available"
 
-        return 0, None, "No experience date provided"
+            # Define exclusion patterns for non-professional positions
+            exclusion_patterns = [
+                r'freelance', r'freelancing',
+                r'education', r'university', r'college', r'school',
+                r'certificate', r'certification', r'training',
+                r'intern', r'internship', r'student',
+                r'hons\.?', r'b\.?sc\.?', r'bachelor',
+                r'm\.?sc\.?', r'master', r'ph\.?d\.?'
+            ]
+            exclusion_pattern = '|'.join(exclusion_patterns)
+
+            # Split content into lines
+            lines = cv_content.split('\n')
+            earliest_date = None
+            current_section = ""
+            in_education_section = False
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Skip education sections
+                if re.search(r'education|qualifications|academic|degree|university|college', line.lower()):
+                    in_education_section = True
+                    continue
+
+                # Check for experience sections
+                if re.search(r'experience|work\s+history|employment|career', line.lower()):
+                    current_section = "experience"
+                    in_education_section = False
+                    continue
+
+                # Skip if not in experience section or in education section
+                if current_section != "experience" or in_education_section:
+                    continue
+
+                # Skip non-professional positions
+                if re.search(exclusion_pattern, line.lower()):
+                    continue
+
+                # Skip academic context lines
+                if any(term in line.lower() for term in [
+                    'graduated', 'degree', 'diploma', 'thesis', 'dissertation',
+                    'academic', 'studied', 'completed', 'coursework'
+                ]):
+                    continue
+
+                # Extract dates using various patterns
+                date_patterns = [
+                    r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
+                    r'\d{1,2}/\d{4}',
+                    r'\d{1,2}-\d{4}',
+                    r'(?:19|20)\d{2}'
+                ]
+
+                for pattern in date_patterns:
+                    matches = re.finditer(pattern, line)
+                    for match in matches:
+                        date_str = match.group(0)
+                        parsed_date = dateparser.parse(date_str)
+                        if parsed_date:
+                            if not earliest_date or parsed_date < earliest_date:
+                                earliest_date = parsed_date
+
+            if earliest_date:
+                # Calculate years from earliest date to 2025
+                years_exp = (datetime(2025, 3, 12) - earliest_date).days / 365.25
+                return round(years_exp, 1), None, cv_content
+
+            # Fallback to start date from sheet
+            if start_date_str and not pd.isna(start_date_str):
+                try:
+                    start_date = pd.to_datetime(start_date_str)
+                    years_exp = (datetime(2025, 3, 12) - start_date).days / 365.25
+                    return round(years_exp, 1), None, cv_content
+                except Exception as e:
+                    return 0, None, f"Invalid date format: {str(e)}"
+
+            return 0, None, cv_content
+
+        return 0, None, "No CV URL provided"
     except Exception as e:
         return 0, None, f"Error calculating experience: {str(e)}"
 
