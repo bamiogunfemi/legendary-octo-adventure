@@ -143,10 +143,10 @@ Nice to have
                         'cv_link': cv_dict['cv_link'],
                         'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
-                        'technical_skills': ", ".join(cv_dict['skills']),  # All technical skills
-                        'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Required skills found
-                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),
-                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])),
+                        'technical_skills': ", ".join(result.get('technical_skills', [])),  # All technical skills
+                        'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Matched required skills
+                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),  # Matched nice-to-have skills
+                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])),  # Missing required skills
                         'overall_score': result['overall_score'],
                         'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else '',
                         'notes': result.get('evaluation_notes', '')
@@ -193,7 +193,7 @@ Nice to have
                             format="%.1f"
                         ),
                         "technical_skills": st.column_config.TextColumn(
-                            "Technical Skills",
+                            "All Technical Skills",
                             help="All technical skills found in the CV"
                         ),
                         "required_skills": st.column_config.TextColumn(
@@ -205,7 +205,7 @@ Nice to have
                             help="Additional desired skills found in the CV"
                         ),
                         "missing_skills": st.column_config.TextColumn(
-                            "Missing Critical Skills",
+                            "Missing Required Skills",
                             help="Required skills not found in the CV"
                         ),
                         "overall_score": st.column_config.NumberColumn(
