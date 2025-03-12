@@ -14,80 +14,61 @@ def suggest_positions(technical_skills):
     skills = [skill.lower() for skill in technical_skills]
 
     # Backend Development
-    if any(x in skills for x in ['python', 'java', 'nodejs', 'django', 'flask', 'fastapi', 'spring']):
-        if any(x in skills for x in ['postgresql', 'mongodb', 'mysql', 'database']):
+    if any(x in skills for x in ['python', 'java', 'nodejs', 'django', 'flask', 'fastapi', 'spring', 'express.js', 'nestjs']):
+        if any(x in skills for x in ['postgresql', 'mongodb', 'mysql', 'database', 'typeorm', 'prisma']):
             positions.add("Back-End Developer")
             positions.add("Software Engineer")
 
     # Frontend Development
-    if any(x in skills for x in ['react', 'angular', 'vue', 'javascript', 'typescript', 'html', 'css']):
+    if any(x in skills for x in ['react', 'angular', 'vue', 'javascript', 'typescript', 'html', 'css', 'nextjs']):
         positions.add("Front-End Developer")
         if any(x in skills for x in ['ui', 'ux', 'design']):
             positions.add("UI Developer")
 
     # Full Stack
-    if any(x in skills for x in ['react', 'angular', 'vue']) and \
-       any(x in skills for x in ['python', 'nodejs', 'java']):
+    if any(x in skills for x in ['react', 'angular', 'vue', 'nextjs']) and \
+       any(x in skills for x in ['python', 'nodejs', 'java', 'express.js', 'nestjs']):
         positions.add("Full Stack Developer")
+        positions.add("Software Engineer")
 
     # DevOps/Cloud/Platform
-    if any(x in skills for x in ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform']):
+    if any(x in skills for x in ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform', 'ci/cd']):
         positions.add("DevOps Engineer")
         positions.add("Cloud Engineer")
         positions.add("Platform Engineer")
         if 'kubernetes' in skills:
             positions.add("Site Reliability Engineer")
 
-    # Data Science and ML
-    if any(x in skills for x in ['python', 'pandas', 'numpy', 'scikit-learn', 'pytorch', 'tensorflow']):
-        positions.add("Data Scientist")
-        positions.add("Machine Learning Engineer")
-        if any(x in skills for x in ['nlp', 'natural language']):
-            positions.add("NLP Engineer")
-        if any(x in skills for x in ['computer vision', 'opencv']):
-            positions.add("Computer Vision Engineer")
-        if any(x in skills for x in ['mlops', 'ml pipeline']):
-            positions.add("MLOps Engineer")
-
-    # Data Engineering
-    if any(x in skills for x in ['sql', 'database', 'etl', 'data warehouse', 'big data']):
-        positions.add("Data Engineer")
-        positions.add("Database Administrator")
-        if any(x in skills for x in ['tableau', 'power bi', 'analytics']):
-            positions.add("Business Intelligence Analyst")
-            positions.add("Data Analyst")
-
-    # Security
-    if any(x in skills for x in ['security', 'cryptography', 'penetration testing', 'ethical hacking']):
+    # Security Engineering
+    if any(x in skills for x in ['security', 'oauth2', 'jwt', 'authentication', 'authorization', 'rbac']):
         positions.add("Security Engineer")
-        positions.add("Information Security Analyst")
-        if 'cloud' in skills:
+        positions.add("Application Security Engineer")
+        if any(x in skills for x in ['aws', 'azure', 'gcp']):
             positions.add("Cloud Security Engineer")
 
-    # API/Integration
-    if any(x in skills for x in ['rest', 'api', 'graphql', 'microservices', 'integration']):
+    # API/Integration/Architecture
+    if any(x in skills for x in ['rest', 'api', 'graphql', 'grpc', 'microservices', 'event-driven']):
         positions.add("API Integration Engineer")
-        positions.add("Software Architect")
+        if 'microservices' in skills or 'event-driven' in skills:
+            positions.add("Software Architect")
+            positions.add("Solutions Architect")
 
     # Mobile Development
+    if 'react native' in skills:
+        positions.add("Mobile Developer")
+        positions.add("React Native Developer")
     if 'android' in skills or 'kotlin' in skills:
         positions.add("Android Developer")
-        positions.add("Mobile Developer")
     if 'ios' in skills or 'swift' in skills:
         positions.add("iOS Developer")
-        positions.add("Mobile Developer")
 
     # Emerging Tech
-    if 'blockchain' in skills or 'web3' in skills:
+    if 'web3' in skills or 'blockchain' in skills:
         positions.add("Blockchain Developer")
         positions.add("Web3 Developer")
-    if any(x in skills for x in ['llm', 'gpt', 'language model']):
-        positions.add("LLM Engineer")
-        positions.add("Prompt Engineer")
-    if 'iot' in skills:
-        positions.add("IoT Engineer")
-    if any(x in skills for x in ['ar', 'vr', 'unity', 'unreal']):
-        positions.add("AR/VR Developer")
+    if any(x in skills for x in ['serverless', 'lambda']):
+        positions.add("Serverless Developer")
+        positions.add("Cloud Developer")
 
     # If no specific positions found, suggest entry-level positions
     if not positions:

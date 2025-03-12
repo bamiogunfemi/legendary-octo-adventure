@@ -7,7 +7,7 @@ class NLPMatcher:
     def __init__(self):
         # Define skill variations and synonyms
         self.skill_variations = {
-            'restful api': ['rest api', 'restful', 'rest', 'api development', 'web api', 'http api'],
+            'restful api': ['rest api', 'restful', 'rest', 'api development', 'web api', 'http api', 'rest apis'],
             'aws': ['amazon web services', 'amazon aws', 'aws cloud'],
             'docker': ['containerization', 'containers', 'docker containers'],
             'kubernetes': ['k8s', 'container orchestration', 'kubernetes cluster'],
@@ -16,16 +16,19 @@ class NLPMatcher:
             'python': ['py', 'python3', 'django', 'fastapi', 'flask'],
             'javascript': ['js', 'ecmascript', 'react', 'node.js'],
             'typescript': ['ts'],
-            'github actions': ['github workflows', 'gh actions', 'ci/cd'],
-            'testing': ['unit testing', 'integration testing', 'test automation', 'pytest'],
-            'webhooks': ['webhook integration', 'web hooks', 'event hooks'],
+            'github actions': ['github workflows', 'gh actions', 'ci/cd pipeline'],
+            'testing': ['unit testing', 'integration testing', 'test automation', 'jest', 'load testing'],
+            'webhooks': ['webhook integration', 'web hooks', 'event hooks', 'event-driven'],
             'microservices': ['microservice architecture', 'service oriented', 'distributed systems'],
-            'api': ['api development', 'api integration', 'rest api', 'graphql', 'grpc']
+            'api': ['api development', 'api integration', 'rest api', 'graphql', 'grpc'],
+            'golang': ['go', 'go lang'],
+            'iac': ['infrastructure as code', 'terraform', 'cloudformation', 'pulumi'],
+            'security': ['oauth2', 'jwt', 'authentication', 'authorization', 'rbac']
         }
 
         # Technical skills patterns with broader matches
         self.tech_skills_patterns = {
-            'programming': r'\b(python|django|fastapi|flask|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab)\b',
+            'programming': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab)\b',
             'web_tech': r'\b(django rest framework|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?|nuxt|gatsby|svelte)\b',
             'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle|database functions|triggers|orm)\b',
             'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?|cloudformation|openstack|heroku)\b',
@@ -33,7 +36,8 @@ class NLPMatcher:
             'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions|terraform|cloudformation)\b',
             'data_science': r'\b(scikit[-\s]?learn|pandas|numpy|matplotlib|tensorflow|pytorch|machine learning|deep learning|statistical analysis)\b',
             'api': r'\b(rest(?:ful)?(?:\s+)?api|api development|graphql|webhook|http[s]?|grpc|soap|openapi|swagger|api integration|3rd party api)\b',
-            'architecture': r'\b(microservices|event[-\s]driven|service[-\s]oriented|distributed systems|scalable|high[-\s]availability)\b'
+            'architecture': r'\b(microservices|event[-\s]driven|service[-\s]oriented|distributed systems|scalable|high[-\s]availability)\b',
+            'security': r'\b(oauth2?|jwt|authentication|authorization|rbac|security|encryption)\b'
         }
 
     def extract_technical_skills(self, text):
@@ -73,7 +77,7 @@ class NLPMatcher:
         return sorted(list(normalized_skills))
 
     def match_skills(self, candidate_skills, required_skills):
-        """Match candidate skills against required skills with context awareness"""
+        """Match candidate skills against required skills with improved context awareness"""
         if not candidate_skills or not required_skills:
             return 0, []
 
@@ -101,7 +105,8 @@ class NLPMatcher:
 
                 # Check if the skills are variations of each other
                 if req_lower in self.skill_variations:
-                    if cand_lower in self.skill_variations[req_lower]:
+                    variations = self.skill_variations[req_lower]
+                    if cand_lower in variations or any(var in cand_lower for var in variations):
                         matched_skills.append(req_skill)
                         total_score += 1
                         matched = True
