@@ -1,0 +1,104 @@
+
+Processing CV 2: Abraham Omorisiagbon
+
+CV Link: https://drive.google.com/open?id=1lEw7qPjS7S_O2BAiC42MHOjX1uUXGqPW
+
+Email: abrahamosazee3@gmail.com
+
+Processing CV URL: https://drive.google.com/open?id=1lEw7qPjS7S_O2BAiC42MHOjX1uUXGqPW
+
+File MIME Type: application/pdf
+
+CV Content (first 1000 characters):
+
+OmorisiagbonAbraham
+08061909748•abrahamomorisiagbon@gmail.com•Nigeria•https://www.linkedin.com/in/abrahamosaz/
+SeniorSoftwareEngineer
+Experiencedsoftwareengineerwithover5+yearsofexpertiseindesigninganddevelopingscalable,high-
+performance,andsecurebackendsolutions.StrongproficiencyinReact,Nextjs,Java,Go,Node.jsand
+TypeScript,withextensiveexperienceinmicroservicesarchitecture,databasemanagement,andAPI
+development.Passionateaboutbuildingoptimizedbackendinfrastructuresthatdrivebusinesssuccess.
+CoreCompetencies
+BackendTechnologies React,Nextjs,ReactNative,Node.js,NestJS,TypeScript,Express.js
+Microservices&Architecture Event-drivenarchitecture,gRPC,RESTAPIs,WebSockets
+Databases&Storage PostgreSQL,MongoDB,Redis,TypeORM,Prisma
+DevOps&Cloud AWS,Docker,CI/CDPipelines.
+Security&BestPractices Authentication(JWT,OAuth2),Role-basedAccessControl(RBAC),Securecodingpractices
+Testing&Performance
+OptimizationUnit&IntegrationTesting(Jest),LoadTesting,CodeProfiling
+VersionControl&
+CollaborationGit,GitHub,A...
+First Line Found: OmorisiagbonAbraham
+
+Found professional experience date: 2024 → 2024-03-12 00:00:00
+
+Found professional experience date: 2021 → 2021-03-12 00:00:00
+
+Found professional experience date: 2020 → 2020-03-12 00:00:00
+
+Calculated years of experience: 5.0 years
+
+Debug: CV Content Type:
+
+main()classbuiltins.NoneType(...)
+No docs available
+Debug: CV Content Length: N/A
+
+Debug: CV Text in Dictionary: False
+
+No CV text content available for analysis
+
+Processing CV 3: Emmanuel Ibok
+
+CV Link: https://drive.google.com/open?id=12niyPw2ahMkYHwh85crpND6Bx7md_cxb
+
+Email: ibokemmanuel17@gmail.com
+
+Processing CV URL: https://drive.google.com/open?id=12niyPw2ahMkYHwh85crpND6Bx7md_cxb
+
+File MIME Type: application/pdf
+
+CV Content (first 1000 characters):
+
+Emmanuel Ibok     
+
+DevOps/Cloud Engineer | ibokemmanuel17@gmail.com   Phone: 
++2348066660893 | Lagos, Nigeria      
+
+OBJECTIVES      
+
+Experienced DevOps / Technical Support  and Cloud Engineer  with expertise in AWS, Azure, cloud security, and IT 
+security. Proven track record in project management, consistently delivering projects o n time and within budget. 
+Over 6  years of IT leadership, including 5  years specializing in DevOps and cloud engineer ing.      
+
+SKILLS      
+
+
+ Cloud Platforms:  AWS, Azure, GCP     
+Infrastructure as Code (IAC):  Terraform, CloudFormation     
+Cloud Development : AWS CDK, AWS Lambda, CloudFormation, S3, EC2, RDS, IAM.    
+Containers & Orchestration:  Kubernetes, EKS, AKS, Docker, Helm, OpenShift,      
+CI/CD Pipelines:  Jenkins, GitLab, GitHub Actions, Azure DevOps, Argo CD, GitOps     
+Build Tools:  Maven, Gradle, NPM, MSBuild, Ant     
+Teamwork & Leadership : Skilled in fostering teamwork and demonstrating leaders...
+First Line Found: Emmanuel Ibok
+
+Found professional experience date: Nov, 2024 → 2024-11-12 00:00:00
+
+Found professional experience date: 2023 → 2023-03-12 00:00:00
+
+Found professional experience date: Feb 2020 → 2020-02-12 00:00:00
+
+Found professional experience date: Feb 2018 → 2018-02-12 00:00:00
+
+Calculated years of experience: 7.1 years
+
+Debug: CV Content Type:
+
+main()classbuiltins.NoneType(...)
+No docs available
+Debug: CV Content Length: N/A
+
+Debug: CV Text in Dictionary: False
+
+No CV text content available for analysis

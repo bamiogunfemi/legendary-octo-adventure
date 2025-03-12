@@ -154,6 +154,8 @@ def parse_document_for_experience(cv_url):
             # Parse experience dates using dateparser
             earliest_date = None
             current_section = ""
+            in_education_section = False
+
             for line in lines:
                 line = line.strip()
 
@@ -161,13 +163,19 @@ def parse_document_for_experience(cv_url):
                 if not line:
                     continue
 
+                # Check if we're entering an education section
+                if re.search(r'education|qualifications|academic|degree|university|college', line.lower()):
+                    in_education_section = True
+                    continue
+
                 # Check if we're in an experience section
                 if re.search(r'experience|work\s+history|employment|career', line.lower()):
                     current_section = "experience"
+                    in_education_section = False
                     continue
 
-                # Skip if not in experience section
-                if current_section != "experience":
+                # Skip if not in experience section or if in education section
+                if current_section != "experience" or in_education_section:
                     continue
 
                 # Skip non-professional positions
@@ -188,9 +196,14 @@ def parse_document_for_experience(cv_url):
                         date_str = match.group(0)
                         parsed_date = dateparser.parse(date_str)
                         if parsed_date:
-                            if not earliest_date or parsed_date < earliest_date:
-                                earliest_date = parsed_date
-                                st.write(f"Found professional experience date: {date_str} -> {parsed_date}")
+                            # Additional check to ensure we're not in an academic context
+                            if not any(academic_term in line.lower() for academic_term in [
+                                'graduated', 'degree', 'diploma', 'thesis', 'dissertation',
+                                'academic', 'studied', 'completed', 'coursework'
+                            ]):
+                                if not earliest_date or parsed_date < earliest_date:
+                                    earliest_date = parsed_date
+                                    st.write(f"Found professional experience date: {date_str} -> {parsed_date} in section: {current_section}")
 
             if earliest_date:
                 years_exp = (datetime.now() - earliest_date).days / 365.25
