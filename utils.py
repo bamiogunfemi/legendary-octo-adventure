@@ -75,74 +75,78 @@ def parse_document_for_experience(cv_url):
             if content.startswith(b'%PDF'):
                 st.write("Detected PDF format, extracting text...")
                 pdf_reader = PdfReader(io.BytesIO(content))
+                total_chars = 0
+
                 for page_num, page in enumerate(pdf_reader.pages, 1):
                     page_text = page.extract_text()
                     text += page_text + "\n"
+                    total_chars += len(page_text)
                     st.write(f"Page {page_num}: Extracted {len(page_text)} characters")
 
-                st.write(f"Successfully extracted {len(text)} total characters from PDF")
+                st.write(f"Total characters extracted from PDF: {total_chars}")
 
                 # Display sample of extracted text
-                st.write("Sample of extracted text (first 200 characters):")
+                st.write("\nFirst 200 characters of extracted text:")
                 st.text(text[:200] + "..." if len(text) > 200 else text)
-            else:
-                return None, None, "Unsupported file format - only PDF files are supported"
 
-            if not text.strip():
-                return None, None, "No text content found in document"
+                if not text.strip():
+                    return None, None, "No text content could be extracted from PDF"
 
-            # Display extracted text for debugging
-            with st.expander("View Extracted CV Text", expanded=False):
-                st.text_area("CV Content", text, height=400)
+                # Create the CV content with prefix
+                cv_content = f"CV Content: {text}"
 
-            # Look for experience section and dates
-            lines = text.split('\n')
-            experience_patterns = [
-                r"(?:Experience|Work History|Employment|Career History)",
-                r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
-                r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
-            ]
+                # Get the first non-empty line
+                first_line = None
+                for line in text.split('\n'):
+                    if line.strip():
+                        first_line = line.strip()
+                        st.write("\nFirst Line:", first_line)
+                        break
 
-            start_date = None
-            first_line = None
-            experience_section = False
+                # Look for experience section and dates
+                lines = text.split('\n')
+                experience_patterns = [
+                    r"(?:Experience|Work History|Employment|Career History)",
+                    r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
+                    r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
+                ]
 
-            for line in lines:
-                # Get first non-empty line
-                if not first_line and line.strip():
-                    first_line = line.strip()
-                    st.write("First Line:", first_line)
+                start_date = None
+                experience_section = False
 
-                # Check for experience section
-                if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
-                    experience_section = True
-                    st.write("Found experience section")
-                    continue
-
-                if experience_section:
-                    # Skip freelance roles
-                    if re.search(r"freelance|contract", line, re.IGNORECASE):
+                for line in lines:
+                    # Check for experience section
+                    if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
+                        experience_section = True
+                        st.write("Found experience section")
                         continue
 
-                    # Look for date patterns
-                    for pattern in experience_patterns[1:]:
-                        match = re.search(pattern, line)
-                        if match:
-                            date_str = match.group(1)
-                            try:
-                                if '/' in date_str:
-                                    start_date = datetime.strptime(date_str, '%m/%Y')
-                                else:
-                                    start_date = datetime.strptime(date_str, '%Y')
-                                st.write(f"Found start date: {start_date}")
-                                # Return CV content with the date and first line
-                                return start_date, first_line, f"CV Content: {text}"
-                            except ValueError:
-                                continue
+                    if experience_section:
+                        # Skip freelance roles
+                        if re.search(r"freelance|contract", line, re.IGNORECASE):
+                            continue
 
-            # If no date found but text extracted successfully
-            st.write("No specific date found, but returning CV content")
-            return None, first_line, f"CV Content: {text}"
+                        # Look for date patterns
+                        for pattern in experience_patterns[1:]:
+                            match = re.search(pattern, line)
+                            if match:
+                                date_str = match.group(1)
+                                try:
+                                    if '/' in date_str:
+                                        start_date = datetime.strptime(date_str, '%m/%Y')
+                                    else:
+                                        start_date = datetime.strptime(date_str, '%Y')
+                                    st.write(f"Found start date: {start_date}")
+                                    return start_date, first_line, cv_content
+                                except ValueError:
+                                    continue
+
+                # If no date found but text extracted successfully
+                st.write("No specific date found, but returning CV content")
+                return None, first_line, cv_content
+
+            else:
+                return None, None, "Unsupported file format - only PDF files are supported"
 
         except Exception as e:
             st.error(f"Error processing document content: {str(e)}")

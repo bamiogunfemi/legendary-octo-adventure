@@ -18,7 +18,13 @@ class ScoringEngine:
         try:
             # Get CV text
             cv_text = cv_data.get('cv_text', '')
-            if not cv_text:
+
+            # Debug: Log CV text length
+            st.write(f"\nProcessing CV text: {len(cv_text)} characters")
+            if cv_text:
+                st.write("First 200 characters of CV text:")
+                st.write(cv_text[:200] + "..." if len(cv_text) > 200 else cv_text)
+            else:
                 st.warning("No CV text content available for analysis")
                 return {
                     'overall_score': 0,
@@ -54,6 +60,12 @@ class ScoringEngine:
                     result['reasons'].append(f"Missing critical skills: {', '.join(ai_analysis['missing_critical_skills'])}")
                 if exp_score < 60:
                     result['reasons'].append("Insufficient years of experience")
+
+            # Debug: Log evaluation results
+            st.write("\nEvaluation Results:")
+            st.write(f"Overall Score: {overall_score}")
+            st.write(f"Matched Required Skills: {result['matched_required_skills']}")
+            st.write(f"Missing Critical Skills: {result['missing_critical_skills']}")
 
             return result
 
