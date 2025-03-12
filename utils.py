@@ -48,33 +48,21 @@ def parse_document_for_experience(cv_url):
             return None, None, "No CV URL provided"
 
         # Process CV url and content extraction code remains the same...
-
         if 'drive.google.com' in cv_url:
-            # Handle Google Drive files
-            if '/file/d/' in cv_url:
-                file_id = cv_url.split('/file/d/')[1].split('/')[0]
-            else:
-                file_id = cv_url.split('id=')[1].split('&')[0]
-
-            # Use the direct download API endpoint
-            creds_json = os.getenv('GOOGLE_CREDENTIALS')
-            if not creds_json:
-                return None, None, "Google credentials not found"
-
+            # Handle Google Drive files...
             try:
+                creds_json = os.getenv('GOOGLE_CREDENTIALS')
+                if not creds_json:
+                    return None, None, "Google credentials not found"
                 creds_dict = json.loads(creds_json)
                 credentials = service_account.Credentials.from_service_account_info(
                     creds_dict, scopes=['https://www.googleapis.com/auth/drive.readonly']
                 )
 
-                # Build the Drive API service
+                # Build the Drive API service and get content...
                 service = build('drive', 'v3', credentials=credentials)
-
-                # Get the file metadata first
                 file_metadata = service.files().get(fileId=file_id, fields='mimeType').execute()
                 mime_type = file_metadata.get('mimeType', '')
-
-                # Get the file content
                 request = service.files().get_media(fileId=file_id)
                 file_buffer = io.BytesIO()
                 downloader = request.execute()
@@ -82,15 +70,10 @@ def parse_document_for_experience(cv_url):
                 file_buffer.seek(0)
                 content = file_buffer.read()
 
-                # Log metadata for debugging
-
-            except json.JSONDecodeError:
-                return None, None, "Invalid JSON format in Google credentials"
             except Exception as e:
                 return None, None, f"Error accessing Google Drive: {str(e)}"
-
         else:
-            # For non-Google Drive URLs
+            # For non-Google Drive URLs...
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -106,17 +89,13 @@ def parse_document_for_experience(cv_url):
         # Process the file based on type
         text = ""
         try:
-            # Check if it's a PDF
+            # Extract text from PDF or DOCX
             if content.startswith(b'%PDF'):
                 pdf_reader = PdfReader(io.BytesIO(content))
                 for page in pdf_reader.pages:
                     page_text = page.extract_text()
                     if page_text:
-                        # Clean up text: remove extra whitespace and normalize line breaks
-                        page_text = re.sub(r'\s+', ' ', page_text)
-                        page_text = page_text.replace('\n\n', '\n').strip()
                         text += page_text + "\n"
-            # Check if it's a DOCX
             elif content.startswith(b'PK\x03\x04'):
                 doc = Document(io.BytesIO(content))
                 for para in doc.paragraphs:
@@ -145,7 +124,69 @@ def parse_document_for_experience(cv_url):
             if not first_line:
                 return None, None, "No readable content found"
 
-            return None, first_line, text
+            # Define exclusion patterns for non-professional positions
+            exclusion_patterns = [
+                r'freelance', r'freelancing',
+                r'education', r'university', r'college', r'school',
+                r'certificate', r'certification', r'training',
+                r'intern', r'internship', r'student',
+                r'hons\.?', r'b\.?sc\.?', r'bachelor',
+                r'm\.?sc\.?', r'master', r'ph\.?d\.?'
+            ]
+            exclusion_pattern = '|'.join(exclusion_patterns)
+
+            # Parse experience dates using dateparser
+            earliest_date = None
+            current_section = ""
+            in_education_section = False
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Check if we're entering an education section
+                if re.search(r'education|qualifications|academic|degree|university|college', line.lower()):
+                    in_education_section = True
+                    continue
+
+                # Check if we're in an experience section
+                if re.search(r'experience|work\s+history|employment|career', line.lower()):
+                    current_section = "experience"
+                    in_education_section = False
+                    continue
+
+                # Skip if not in experience section or if in education section
+                if current_section != "experience" or in_education_section:
+                    continue
+
+                # Skip non-professional positions
+                if re.search(exclusion_pattern, line.lower()):
+                    continue
+
+                # Extract dates using various patterns
+                date_patterns = [
+                    r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
+                    r'\d{1,2}/\d{4}',
+                    r'\d{1,2}-\d{4}',
+                    r'(?:19|20)\d{2}'  # Year pattern limited to reasonable range
+                ]
+
+                for pattern in date_patterns:
+                    matches = re.finditer(pattern, line)
+                    for match in matches:
+                        date_str = match.group(0)
+                        parsed_date = dateparser.parse(date_str)
+                        if parsed_date:
+                            # Additional check to ensure we're not in an academic context
+                            if not any(academic_term in line.lower() for academic_term in [
+                                'graduated', 'degree', 'diploma', 'thesis', 'dissertation',
+                                'academic', 'studied', 'completed', 'coursework'
+                            ]):
+                                if not earliest_date or parsed_date < earliest_date:
+                                    earliest_date = parsed_date
+
+            return earliest_date, first_line, text
 
         except Exception as e:
             return None, None, f"Error processing document: {str(e)}"
@@ -280,7 +321,6 @@ def parse_job_description(jd_text, custom_years=None):
 
 
         return job_requirements
-
     except Exception as e:
         st.error(f"Error parsing job description: {str(e)}")
         return {
