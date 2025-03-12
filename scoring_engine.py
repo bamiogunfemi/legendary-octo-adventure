@@ -25,6 +25,12 @@ class ScoringEngine:
                 st.warning("No CV text content available for analysis")
                 return self._create_empty_result("No CV content available")
 
+            # Log job requirements for debugging
+            st.write("\nJob Requirements:")
+            st.write("Role:", job_requirements.get('role', ''))
+            st.write("Required Skills:", job_requirements.get('required_skills', []))
+            st.write("Nice to Have Skills:", job_requirements.get('nice_to_have_skills', []))
+
             # Extract technical skills from CV content
             extracted_skills = self.nlp_matcher.extract_technical_skills(cv_text)
 
@@ -39,6 +45,9 @@ class ScoringEngine:
 
             # Update CV data with extracted skills
             cv_data['skills'] = all_skills
+
+            # Log combined skills
+            st.write("\nAll Candidate Skills:", all_skills)
 
             # Skills evaluation with detailed matching
             skills_score, skills_result = self.nlp_matcher.match_skills(
@@ -76,6 +85,14 @@ class ScoringEngine:
             # Calculate overall score
             overall_score = (skills_score * 0.7 + exp_score * 0.3)  # Weight skills more heavily
 
+            # Log final evaluation details
+            st.write("\nSkills Matching Results:")
+            st.write("Matched Required Skills:", matched_required)
+            st.write("Nice-to-have Skills:", matched_nice_to_have)
+            st.write("Missing Critical Skills:", missing_critical)
+            st.write(f"Skills Score: {skills_score:.2f}%")
+            st.write(f"Overall Score: {overall_score:.2f}%")
+
             # Compile results
             result = {
                 'overall_score': overall_score,
@@ -85,13 +102,6 @@ class ScoringEngine:
                 'evaluation_notes': '; '.join(notes),
                 'reasons': reasons if reasons else []
             }
-
-            # Log final evaluation
-            st.write("\nFinal Evaluation:")
-            st.write(f"Overall Score: {overall_score:.2f}%")
-            st.write("Matched Required Skills:", matched_required)
-            st.write("Nice-to-have Skills:", matched_nice_to_have)
-            st.write("Missing Critical Skills:", missing_critical)
 
             return result
 

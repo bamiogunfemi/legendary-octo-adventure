@@ -130,16 +130,16 @@ Nice to have
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
 
-                    # Combine results
+                    # Compile results
                     evaluation = {
                         'name': cv_dict['name'],
                         'email': cv_dict['email'],
                         'cv_link': cv_dict['cv_link'],
                         'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
-                        'required_skills': ', '.join(result.get('matched_required_skills', [])),
-                        'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
-                        'missing_skills': ', '.join(result.get('missing_critical_skills', [])),
+                        'required_skills': result.get('matched_required_skills', []),  # Get as list
+                        'nice_to_have_skills': result.get('matched_nice_to_have', []),  # Get as list
+                        'missing_skills': result.get('missing_critical_skills', []),
                         'overall_score': result['overall_score'],
                         'document_errors': cv_content if cv_content and "Error" in str(cv_content) else '',
                         'notes': result.get('evaluation_notes', '')
@@ -205,12 +205,18 @@ Nice to have
                             "Years of Experience",
                             format="%.1f"
                         ),
-                        "required_skills": st.column_config.TextColumn(
+                        "required_skills": st.column_config.ListColumn(
                             "Required Skills Found",
                             help="Skills from the job requirements found in the CV"
                         ),
-                        "nice_to_have_skills": "Nice-to-Have Skills",
-                        "missing_skills": "Missing Critical Skills",
+                        "nice_to_have_skills": st.column_config.ListColumn(
+                            "Nice-to-Have Skills",
+                            help="Additional desired skills found in the CV"
+                        ),
+                        "missing_skills": st.column_config.ListColumn(
+                            "Missing Critical Skills",
+                            help="Required skills not found in the CV"
+                        ),
                         "overall_score": st.column_config.NumberColumn(
                             "Match Score (%)",
                             format="%.1f"

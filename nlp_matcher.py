@@ -168,7 +168,8 @@ class NLPMatcher:
             st.write(f"\nMatching '{req_skill}':")
             st.write(f"Best match: '{best_match[0]}' (similarity: {best_match[1]:.2f})")
 
-            if best_match[1] > 0.6:  # Threshold for considering a match
+            # Lower threshold for matching from 0.6 to 0.5
+            if best_match[1] > 0.5:  # Reduced threshold for considering a match
                 matched_skills.append({
                     'required': req_skill,
                     'matched': best_match[0],
