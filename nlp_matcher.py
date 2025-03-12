@@ -5,39 +5,39 @@ from collections import Counter
 
 class NLPMatcher:
     def __init__(self):
-        # Simple text processing without NLTK
-        self.tokenize = lambda text: text.lower().split()
-
-        # Define skill variations mapping
+        # Define skill variations and synonyms
         self.skill_variations = {
-            'restful': ['rest', 'restful api', 'rest api'],
-            'rest': ['restful', 'restful api', 'rest api'],
-            'restful api': ['rest', 'restful', 'rest api'],
+            'restful api': ['rest api', 'restful', 'rest', 'api development', 'web api', 'http api'],
             'aws': ['amazon web services', 'amazon aws', 'aws cloud'],
-            'docker': ['containerization', 'containers'],
-            'kubernetes': ['k8s', 'container orchestration'],
-            'postgresql': ['postgres', 'psql'],
-            'mongodb': ['mongo', 'nosql'],
-            'python': ['py', 'python3'],
-            'javascript': ['js', 'ecmascript'],
+            'docker': ['containerization', 'containers', 'docker containers'],
+            'kubernetes': ['k8s', 'container orchestration', 'kubernetes cluster'],
+            'postgresql': ['postgres', 'psql', 'database functions', 'database triggers'],
+            'mongodb': ['mongo', 'nosql', 'document database'],
+            'python': ['py', 'python3', 'django', 'fastapi', 'flask'],
+            'javascript': ['js', 'ecmascript', 'react', 'node.js'],
             'typescript': ['ts'],
-            'github actions': ['github workflows', 'gh actions']
+            'github actions': ['github workflows', 'gh actions', 'ci/cd'],
+            'testing': ['unit testing', 'integration testing', 'test automation', 'pytest'],
+            'webhooks': ['webhook integration', 'web hooks', 'event hooks'],
+            'microservices': ['microservice architecture', 'service oriented', 'distributed systems'],
+            'api': ['api development', 'api integration', 'rest api', 'graphql', 'grpc']
         }
 
-        # Technical skills patterns
+        # Technical skills patterns with broader matches
         self.tech_skills_patterns = {
-            'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab)\b',
-            'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?)\b',
-            'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle)\b',
-            'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?)\b',
-            'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation)\b',
-            'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions)\b',
-            'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp)\b',
-            'api': r'\b(rest(?:ful)?(?:\s+)?api|rest|api|graphql|webhook|http[s]?|grpc|soap|openapi|swagger)\b'
+            'programming': r'\b(python|django|fastapi|flask|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab)\b',
+            'web_tech': r'\b(django rest framework|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?|nuxt|gatsby|svelte)\b',
+            'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle|database functions|triggers|orm)\b',
+            'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?|cloudformation|openstack|heroku)\b',
+            'testing': r'\b(unit test|integration test|pytest|selenium|cypress|jest|mocha|chai|testing|test automation|playwright|testcafe)\b',
+            'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions|terraform|cloudformation)\b',
+            'data_science': r'\b(scikit[-\s]?learn|pandas|numpy|matplotlib|tensorflow|pytorch|machine learning|deep learning|statistical analysis)\b',
+            'api': r'\b(rest(?:ful)?(?:\s+)?api|api development|graphql|webhook|http[s]?|grpc|soap|openapi|swagger|api integration|3rd party api)\b',
+            'architecture': r'\b(microservices|event[-\s]driven|service[-\s]oriented|distributed systems|scalable|high[-\s]availability)\b'
         }
 
     def extract_technical_skills(self, text):
-        """Extract technical skills from text using regex patterns"""
+        """Extract technical skills from text using enhanced pattern matching"""
         if not text:
             return []
 
@@ -45,73 +45,84 @@ class NLPMatcher:
         found_skills = set()
 
         # Extract skills using patterns
-        for pattern in self.tech_skills_patterns.values():
+        for category, pattern in self.tech_skills_patterns.items():
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
                 skill = match.group(0).lower().strip()
+                # Clean up the skill name
+                skill = re.sub(r'\s+', ' ', skill)
                 found_skills.add(skill)
 
-        # Add variations of found skills
+        # Add variations and related skills
         expanded_skills = set()
         for skill in found_skills:
             expanded_skills.add(skill)
-            # Check variations
+            # Check variations and synonyms
             for base_skill, variations in self.skill_variations.items():
                 if skill in variations or skill == base_skill:
                     expanded_skills.add(base_skill)
                     expanded_skills.update(variations)
 
-        return sorted(list(expanded_skills))
+        # Clean and normalize skills
+        normalized_skills = set()
+        for skill in expanded_skills:
+            normalized = self.normalize_skill_name(skill)
+            if normalized:
+                normalized_skills.add(normalized)
+
+        return sorted(list(normalized_skills))
 
     def match_skills(self, candidate_skills, required_skills):
-        """Match candidate skills against required skills"""
+        """Match candidate skills against required skills with context awareness"""
         if not candidate_skills or not required_skills:
             return 0, []
-
-        # Debug logging
-        st.write("Matching skills:")
-        st.write("Candidate skills:", candidate_skills)
-        st.write("Required skills:", required_skills)
 
         matched_skills = []
         total_score = 0
 
-        # Normalize all skills
-        normalized_candidate = [skill.lower().strip() for skill in candidate_skills]
-        normalized_required = [skill.lower().strip() for skill in required_skills]
+        # Debug logging
+        st.write("\nMatching skills:")
+        st.write("Candidate skills:", ", ".join(candidate_skills))
+        st.write("Required skills:", ", ".join(required_skills))
 
         for req_skill in required_skills:
             req_lower = req_skill.lower().strip()
 
             # Direct match
-            if req_lower in normalized_candidate:
+            if req_lower in [s.lower() for s in candidate_skills]:
                 matched_skills.append(req_skill)
                 total_score += 1
                 continue
 
-            # Check variations
+            # Check variations and related skills
             matched = False
-            for cand_skill in normalized_candidate:
-                # Check if either skill is in the variations of the other
-                variations = self.skill_variations.get(req_lower, []) + [req_lower]
-                cand_variations = self.skill_variations.get(cand_skill, []) + [cand_skill]
+            for cand_skill in candidate_skills:
+                cand_lower = cand_skill.lower()
 
-                if any(var in cand_variations for var in variations):
+                # Check if the skills are variations of each other
+                if req_lower in self.skill_variations:
+                    if cand_lower in self.skill_variations[req_lower]:
+                        matched_skills.append(req_skill)
+                        total_score += 1
+                        matched = True
+                        break
+
+                # Check if candidate skill contains required skill
+                if req_lower in cand_lower or any(var in cand_lower for var in self.skill_variations.get(req_lower, [])):
                     matched_skills.append(req_skill)
-                    total_score += 1
+                    total_score += 0.8
                     matched = True
                     break
 
             if not matched:
-                # Check for partial matches
-                for cand_skill in normalized_candidate:
-                    if req_lower in cand_skill or cand_skill in req_lower:
-                        matched_skills.append(req_skill)
-                        total_score += 0.8
-                        break
+                # Try fuzzy matching with context
+                best_match = self.find_best_match(req_skill, candidate_skills)
+                if best_match[1] >= 0.7:  # Higher threshold for fuzzy matches
+                    matched_skills.append(req_skill)
+                    total_score += best_match[1]
 
         avg_score = (total_score / len(required_skills)) * 100 if required_skills else 0
-        return avg_score, matched_skills
+        return avg_score, list(set(matched_skills))
 
     def normalize_skill_name(self, skill):
         """Normalize skill names to standard format"""
@@ -119,20 +130,57 @@ class NLPMatcher:
             return ''
 
         skill = skill.lower().strip()
-        skill = re.sub(r'\s+', ' ', skill)  # Normalize whitespace
-        skill = skill.replace('-', ' ')  # Normalize hyphens
+        skill = re.sub(r'\s+', ' ', skill)
+        skill = skill.replace('-', ' ')
 
         # Remove common prefixes/suffixes
         skill = re.sub(r'^(?:experienced in |proficient in |knowledge of |expertise in )', '', skill)
         skill = re.sub(r'(?:development|programming|engineer)$', '', skill)
 
-        return skill.strip()
+        # Standardize common variations
+        replacements = {
+            'restful': 'restful api',
+            'rest': 'restful api',
+            'api development': 'restful api',
+            'web api': 'restful api',
+            'js': 'javascript',
+            'py': 'python',
+            'postgres': 'postgresql',
+            'k8s': 'kubernetes'
+        }
+
+        return replacements.get(skill, skill).strip()
+
+    def find_best_match(self, skill, candidates):
+        """Find the best matching skill from candidates"""
+        best_match = (None, 0)
+        skill_lower = skill.lower()
+
+        for candidate in candidates:
+            candidate_lower = candidate.lower()
+
+            # Check for exact match
+            if skill_lower == candidate_lower:
+                return (candidate, 1.0)
+
+            # Check variations
+            if skill_lower in self.skill_variations:
+                if candidate_lower in self.skill_variations[skill_lower]:
+                    return (candidate, 1.0)
+
+            # Calculate similarity score
+            similarity = self.get_skill_similarity(skill_lower, candidate_lower)
+            if similarity > best_match[1]:
+                best_match = (candidate, similarity)
+
+        return best_match
 
     def get_skill_similarity(self, skill1, skill2):
         """Compute similarity between two skills"""
         if not skill1 or not skill2:
             return 0.0
 
+        # Normalize skills
         skill1 = self.normalize_skill_name(skill1)
         skill2 = self.normalize_skill_name(skill2)
 
@@ -143,18 +191,13 @@ class NLPMatcher:
         # Check variations
         if skill1 in self.skill_variations and skill2 in self.skill_variations[skill1]:
             return 1.0
-        if skill2 in self.skill_variations and skill1 in self.skill_variations[skill2]:
-            return 1.0
 
         # Partial match
         if skill1 in skill2 or skill2 in skill1:
             return 0.8
 
-        # Basic string similarity as fallback
-        max_len = max(len(skill1), len(skill2))
-        if max_len == 0:
-            return 0.0
-        return 1.0 - (self._levenshtein_distance(skill1, skill2) / max_len)
+        # Levenshtein distance as last resort
+        return 1.0 - (self._levenshtein_distance(skill1, skill2) / max(len(skill1), len(skill2)))
 
     def _levenshtein_distance(self, s1, s2):
         """Calculate the Levenshtein distance between two strings"""
@@ -221,3 +264,6 @@ class NLPMatcher:
         text = text.lower()
         text = re.sub(r'[^\w\s]', ' ', text)
         return self.tokenize(text)
+
+    def tokenize(self, text):
+        return text.lower().split()

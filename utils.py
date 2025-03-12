@@ -42,7 +42,7 @@ def get_google_drive_file_url(url):
         return None
 
 def parse_document_for_experience(cv_url):
-    """Parse PDF/DOC CV to extract first professional experience date"""
+    """Parse PDF/DOC CV to extract first professional experience date and text content"""
     try:
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
@@ -112,7 +112,12 @@ def parse_document_for_experience(cv_url):
             if content.startswith(b'%PDF'):
                 pdf_reader = PdfReader(io.BytesIO(content))
                 for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
+                    page_text = page.extract_text()
+                    if page_text:
+                        # Clean up text: remove extra whitespace and normalize line breaks
+                        page_text = re.sub(r'\s+', ' ', page_text)
+                        page_text = page_text.replace('\n\n', '\n').strip()
+                        text += page_text + "\n"
             # Check if it's a DOCX
             elif content.startswith(b'PK\x03\x04'):
                 doc = Document(io.BytesIO(content))
@@ -121,11 +126,14 @@ def parse_document_for_experience(cv_url):
             else:
                 return None, None, "Unsupported file format"
 
-            # Log the content
-            st.write("CV Content (first 1000 characters):")
-            st.text(text[:1000] + "..." if len(text) > 1000 else text)
+            # Clean up text
+            text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
+            text = text.replace('•', '\n•')  # Preserve bullet points
+            text = re.sub(r'([.!?])\s*', r'\1\n', text)  # Split sentences
+            text = re.sub(r'\n\s*\n', '\n', text)  # Remove empty lines
+            text = text.strip()
 
-            if not text.strip():
+            if not text:
                 return None, None, "No text content found in document"
 
             # Get the first non-empty line
@@ -140,96 +148,7 @@ def parse_document_for_experience(cv_url):
             if not first_line:
                 return None, None, "No readable content found"
 
-            # Define exclusion patterns for non-professional positions
-            exclusion_patterns = [
-                r'freelance', r'freelancing', r'contract',
-                r'education', r'university', r'college', r'school',
-                r'certificate', r'certification', r'training',
-                r'intern', r'internship', r'student',
-                r'hons\.?', r'b\.?sc\.?', r'bachelor',
-                r'm\.?sc\.?', r'master', r'ph\.?d\.?'
-            ]
-            exclusion_pattern = '|'.join(exclusion_patterns)
-
-            # Parse experience dates using dateparser
-            earliest_date = None
-            current_section = ""
-            in_education_section = False
-
-            for line in lines:
-                line = line.strip()
-
-                # Skip empty lines
-                if not line:
-                    continue
-
-                # Check if we're entering an education section
-                if re.search(r'education|qualifications|academic|degree|university|college', line.lower()):
-                    in_education_section = True
-                    continue
-
-                # Check if we're in an experience section
-                if re.search(r'experience|work\s+history|employment|career', line.lower()):
-                    current_section = "experience"
-                    in_education_section = False
-                    continue
-
-                # Skip if not in experience section or if in education section
-                if current_section != "experience" or in_education_section:
-                    continue
-
-                # Skip non-professional positions
-                if re.search(exclusion_pattern, line.lower()):
-                    continue
-
-                # Extract dates using various patterns
-                date_patterns = [
-                    r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
-                    r'\d{1,2}/\d{4}',
-                    r'\d{1,2}-\d{4}',
-                    r'(?:19|20)\d{2}'  # Year pattern limited to reasonable range
-                ]
-
-                for pattern in date_patterns:
-                    matches = re.finditer(pattern, line)
-                    for match in matches:
-                        date_str = match.group(0)
-                        parsed_date = dateparser.parse(date_str)
-                        if parsed_date:
-                            # Additional check to ensure we're not in an academic context
-                            if not any(academic_term in line.lower() for academic_term in [
-                                'graduated', 'degree', 'diploma', 'thesis', 'dissertation',
-                                'academic', 'studied', 'completed', 'coursework'
-                            ]):
-                                if not earliest_date or parsed_date < earliest_date:
-                                    earliest_date = parsed_date
-                                    st.write(f"Found professional experience date: {date_str} -> {parsed_date} in section: {current_section}")
-
-            if earliest_date:
-                years_exp = (datetime.now() - earliest_date).days / 365.25
-                st.write(f"Calculated years of experience: {round(years_exp, 1)} years")
-
-                # Extract technical skills without categorization
-                technical_patterns = [
-                    r'\b(?:python|java(?:script)?|golang|typescript)\b',
-                    r'\b(?:aws|azure|gcp|kubernetes|docker|github actions|argocd)\b',
-                    r'\b(?:postgres(?:ql)?|mongo(?:db)?)\b',
-                    r'\b(?:rest(?:ful)?|api|webhook)\b',
-                    r'\b(?:test(?:ing)?|automation)\b'
-                ]
-
-                all_skills = set()
-                for pattern in technical_patterns:
-                    matches = re.finditer(pattern, text.lower())
-                    skills = {match.group(0) for match in matches}
-                    all_skills.update(skills)
-
-                if all_skills:
-                    st.write("Technical Skills Found:", ", ".join(sorted(all_skills)))
-
-                return earliest_date, first_line, text
-            else:
-                return None, first_line, "No valid professional experience dates found"
+            return None, first_line, text
 
         except Exception as e:
             return None, None, f"Error processing document: {str(e)}"
@@ -242,12 +161,14 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            start_date, first_line, error = parse_document_for_experience(cv_url)
+            start_date, first_line, cv_content = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), first_line, None
-            elif error:
-                return 0, first_line, error
+                return round(years_exp, 1), first_line, cv_content
+            elif cv_content:
+                return 0, first_line, cv_content
+            elif isinstance(cv_content, str):
+                return 0, first_line, cv_content
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
