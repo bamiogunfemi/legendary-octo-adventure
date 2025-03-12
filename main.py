@@ -5,17 +5,40 @@ from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
 from utils import parse_job_description, prepare_export_data, calculate_years_experience
 
-# Initialize NLTK data at startup
-try:
-    nltk.download('punkt', quiet=True)
-    nltk.download('stopwords', quiet=True)
-    nltk.download('wordnet', quiet=True)
-    nltk.download('averaged_perceptron_tagger', quiet=True)
-except Exception as e:
-    st.error(f"Error initializing NLTK: {str(e)}")
+def initialize_nltk():
+    """Initialize NLTK data with proper error handling"""
+    try:
+        # Ensure NLTK data directory exists
+        import os
+        nltk_data_dir = os.path.expanduser("~/nltk_data")
+        os.makedirs(nltk_data_dir, exist_ok=True)
+        nltk.data.path.append(nltk_data_dir)
+
+        # Download required NLTK data
+        for package in ['punkt', 'stopwords', 'wordnet', 'averaged_perceptron_tagger']:
+            try:
+                nltk.download(package, quiet=True, download_dir=nltk_data_dir)
+            except Exception as e:
+                st.error(f"Error downloading NLTK package {package}: {str(e)}")
+                return False
+        return True
+    except Exception as e:
+        st.error(f"Error initializing NLTK: {str(e)}")
+        return False
 
 def main():
-    st.set_page_config(page_title="CV Evaluator", layout="wide")
+    # Page config must be the first Streamlit command
+    st.set_page_config(
+        page_title="CV Evaluator",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+
+    # Initialize NLTK before any other operations
+    if not initialize_nltk():
+        st.error("Failed to initialize required NLTK components. Please contact support.")
+        return
+
     st.title("CV Evaluator")
 
     try:
@@ -33,19 +56,19 @@ def main():
 
         # Default job description
         default_jd = """About You
-     • python
-     • RESTful API.
-     • webhooks.
-     • AWS, GCP and Azure. 
-     • ArgoCD, Kubernetes & docker.
-     • postgres and mongodb.
-     • testing 
-     • Github Actions.
+        • python
+        • RESTful API.
+        • webhooks.
+        • AWS, GCP and Azure. 
+        • ArgoCD, Kubernetes & docker.
+        • postgres and mongodb.
+        • testing 
+        • Github Actions.
 
-Nice to have
-   • Golang 
-   • including IaC (Terraform, CloudFormation).
-    """
+        Nice to have
+        • Golang 
+        • including IaC (Terraform, CloudFormation).
+         """
 
         jd_text = st.sidebar.text_area(
             "Enter Job Description",
