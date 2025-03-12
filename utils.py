@@ -47,8 +47,6 @@ def parse_document_for_experience(cv_url):
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
 
-        # Process CV url and content extraction code remains the same...
-
         if 'drive.google.com' in cv_url:
             # Handle Google Drive files
             if '/file/d/' in cv_url:
@@ -81,8 +79,6 @@ def parse_document_for_experience(cv_url):
                 file_buffer.write(downloader)
                 file_buffer.seek(0)
                 content = file_buffer.read()
-
-                # Log metadata for debugging
 
             except json.JSONDecodeError:
                 return None, None, "Invalid JSON format in Google credentials"
@@ -156,16 +152,69 @@ def parse_document_for_experience(cv_url):
 def calculate_years_experience(cv_url=None, start_date_str=None):
     """Calculate years of experience from CV or start date"""
     try:
-        # Try to get start date from CV first
+        # Try to get experience from CV content first
         if cv_url and cv_url.strip():
-            start_date, first_line, cv_content = parse_document_for_experience(cv_url)
-            if start_date:
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), first_line, cv_content
-            elif cv_content:
-                return 0, first_line, cv_content
-            elif isinstance(cv_content, str):
-                return 0, first_line, cv_content
+            try:
+                # Parse CV content
+                _, first_line, cv_content = parse_document_for_experience(cv_url)
+
+                if not cv_content:
+                    return 0, None, "No CV content available"
+
+                # Define experience-related keywords
+                exp_keywords = [
+                    'experience',
+                    'work history',
+                    'employment',
+                    'professional background',
+                    'career',
+                    'worked',
+                    'working'
+                ]
+
+                # Look for experience sections and dates
+                cv_text = cv_content.lower()
+                earliest_date = None
+
+                # First try to find dates in lines that contain experience keywords
+                lines = cv_text.split('\n')
+                for line in lines:
+                    if any(keyword in line for keyword in exp_keywords):
+                        # Look for year patterns
+                        year_matches = re.findall(r'(?:19|20)\d{2}', line)
+                        for year in year_matches:
+                            date = dateparser.parse(year)
+                            if date:
+                                if not earliest_date or date < earliest_date:
+                                    earliest_date = date
+
+                # If no date found in experience sections, try all dates
+                if not earliest_date:
+                    all_dates = []
+                    date_patterns = [
+                        r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
+                        r'\d{1,2}/\d{4}',
+                        r'\d{1,2}-\d{4}',
+                        r'(?:19|20)\d{2}'
+                    ]
+
+                    for pattern in date_patterns:
+                        matches = re.finditer(pattern, cv_text)
+                        for match in matches:
+                            date_str = match.group(0)
+                            date = dateparser.parse(date_str)
+                            if date:
+                                all_dates.append(date)
+
+                    if all_dates:
+                        earliest_date = min(all_dates)
+
+                if earliest_date:
+                    years_exp = (datetime.now() - earliest_date).days / 365.25
+                    return round(years_exp, 1), first_line, cv_content
+
+            except Exception as e:
+                return 0, None, f"Error processing CV: {str(e)}"
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
@@ -176,7 +225,7 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
             except Exception as e:
                 return 0, None, f"Invalid date format: {str(e)}"
 
-        return 0, None, "No experience date provided"
+        return 0, None, "No experience date found"
     except Exception as e:
         return 0, None, f"Error calculating experience: {str(e)}"
 
