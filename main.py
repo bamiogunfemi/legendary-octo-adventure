@@ -117,7 +117,7 @@ Nice to have
         "Required Years of Experience",
         min_value=0,
         max_value=20,
-        value=0,
+        value=5,
         help="Set the minimum years of experience required"
     )
 
