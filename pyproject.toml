@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "dateparser>=1.2.1",
     "docx>=0.2.4",
     "google-api-python-client>=2.163.0",
     "google-auth>=2.38.0",

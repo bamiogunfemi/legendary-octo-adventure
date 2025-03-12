@@ -3,7 +3,10 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import re
+import streamlit as st
 from nlp_matcher import NLPMatcher
+from datetime import datetime
+import dateparser
 
 class ScoringEngine:
     def __init__(self):
@@ -18,6 +21,9 @@ class ScoringEngine:
 
             # Get CV text
             cv_text = cv_data.get('cv_text', '')
+            if not cv_text:
+                st.warning("No CV text content available for analysis")
+                return self._create_empty_result("No CV content available")
 
             # Extract technical skills from CV content
             extracted_skills = self.nlp_matcher.extract_technical_skills(cv_text)
@@ -59,8 +65,12 @@ class ScoringEngine:
                     notes.append(f"Has {len(matched_nice_to_have)} nice-to-have skills")
                 if missing_critical:
                     notes.append(f"Missing {len(missing_critical)} critical skills")
+            else:
+                matched_required = []
+                matched_nice_to_have = []
+                missing_critical = []
 
-            # Experience evaluation
+            # Parse experience from CV text
             exp_score = 100 if cv_data.get('years_experience', 0) >= job_requirements.get('required_years', 0) else 50
 
             # Calculate overall score
@@ -87,11 +97,15 @@ class ScoringEngine:
 
         except Exception as e:
             st.error(f"Error in evaluate_cv: {str(e)}")
-            return {
-                'overall_score': 0,
-                'matched_required_skills': [],
-                'matched_nice_to_have': [],
-                'missing_critical_skills': [],
-                'evaluation_notes': f'Error during evaluation: {str(e)}',
-                'reasons': ['Error during evaluation: ' + str(e)]
-            }
+            return self._create_empty_result(f"Error during evaluation: {str(e)}")
+
+    def _create_empty_result(self, error_message):
+        """Create an empty result with error message"""
+        return {
+            'overall_score': 0,
+            'matched_required_skills': [],
+            'matched_nice_to_have': [],
+            'missing_critical_skills': [],
+            'evaluation_notes': error_message,
+            'reasons': [error_message]
+        }

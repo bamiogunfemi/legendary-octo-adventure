@@ -12,6 +12,7 @@ import json
 from google.oauth2.credentials import Credentials
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+import dateparser
 
 def get_google_drive_file_url(url):
     """Convert Google Drive share URL to direct download URL"""
@@ -43,7 +44,6 @@ def get_google_drive_file_url(url):
 def parse_document_for_experience(cv_url):
     """Parse PDF/DOC CV to extract first non-freelance experience date"""
     try:
-        # Check if it's a Google Drive URL
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
 
@@ -122,25 +122,16 @@ def parse_document_for_experience(cv_url):
                 return None, None, "Unsupported file format"
 
             # Log the content
-            st.markdown("### CV Content")
-            
-            # Display full text in an expander
-            with st.expander("View Full CV Text", expanded=True):
-                st.text_area("CV Text", text, height=400)
-                
-            # Display summary in main view
             st.write("CV Content (first 1000 characters):")
             st.text(text[:1000] + "..." if len(text) > 1000 else text)
 
             if not text.strip():
                 return None, None, "No text content found in document"
-                
-            # Return CV text with error message to be used for skills extraction
-            cv_text_info = f"CV Content: {text}"
 
             # Get the first non-empty line
             first_line = None
-            for line in text.split('\n'):
+            lines = text.split('\n')
+            for line in lines:
                 if line.strip():
                     first_line = line.strip()
                     st.write("First Line Found:", first_line)
@@ -149,41 +140,51 @@ def parse_document_for_experience(cv_url):
             if not first_line:
                 return None, None, "No readable content found"
 
-            # Look for experience section and dates
-            lines = text.split('\n')
-            experience_patterns = [
-                r"(?:Experience|Work History|Employment|Career History)",
-                r"(\d{1,2}/\d{4})\s*[-–]\s*(?:Present|\d{1,2}/\d{4})",
-                r"(\d{4})\s*[-–]\s*(?:Present|\d{4})"
-            ]
-
-            # Find first non-freelance role date
+            # Parse experience dates using dateparser
+            earliest_date = None
             current_section = ""
             for line in lines:
-                # Check if this is the experience section
-                if any(re.search(pattern, line, re.IGNORECASE) for pattern in [experience_patterns[0]]):
+                line = line.strip()
+
+                # Skip empty lines
+                if not line:
+                    continue
+
+                # Check if we're in an experience section
+                if re.search(r'experience|work\s+history|employment|career', line.lower()):
                     current_section = "experience"
                     continue
 
-                if current_section == "experience":
-                    # Skip if it's a freelance role
-                    if re.search(r"freelance|contract", line, re.IGNORECASE):
-                        continue
+                # Skip if not in experience section
+                if current_section != "experience":
+                    continue
 
-                    # Look for date patterns
-                    for pattern in experience_patterns[1:]:
-                        match = re.search(pattern, line)
-                        if match:
-                            date_str = match.group(1)
-                            try:
-                                if '/' in date_str:
-                                    return datetime.strptime(date_str, '%m/%Y'), first_line, None
-                                else:
-                                    return datetime.strptime(date_str, '%Y'), first_line, None
-                            except ValueError:
-                                continue
+                # Skip freelance positions
+                if re.search(r'freelance|freelancing|contract', line.lower()):
+                    continue
 
-            return None, first_line, cv_text_info if 'cv_text_info' in locals() else "No valid experience dates found"
+                # Extract dates using various patterns
+                date_patterns = [
+                    r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
+                    r'\d{1,2}/\d{4}',
+                    r'\d{1,2}-\d{4}',
+                    r'\d{4}'
+                ]
+
+                for pattern in date_patterns:
+                    matches = re.finditer(pattern, line)
+                    for match in matches:
+                        date_str = match.group(0)
+                        parsed_date = dateparser.parse(date_str)
+                        if parsed_date:
+                            if not earliest_date or parsed_date < earliest_date:
+                                earliest_date = parsed_date
+                                st.write(f"Found date: {date_str} -> {parsed_date}")
+
+            if earliest_date:
+                return earliest_date, first_line, None
+            else:
+                return None, first_line, "No valid experience dates found"
 
         except Exception as e:
             return None, None, f"Error processing document: {str(e)}"
