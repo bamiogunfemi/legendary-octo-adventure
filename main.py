@@ -8,36 +8,92 @@ from nlp_matcher import NLPMatcher
 
 def suggest_positions(technical_skills):
     """Suggest potential positions based on technical skills"""
-    positions = []
+    positions = set()  # Using set to avoid duplicates
 
     # Convert skills list to lowercase for matching
     skills = [skill.lower() for skill in technical_skills]
 
-    # Backend Development positions
-    if any(x in skills for x in ['python', 'java', 'nodejs', 'django', 'flask', 'fastapi']):
+    # Backend Development
+    if any(x in skills for x in ['python', 'java', 'nodejs', 'django', 'flask', 'fastapi', 'spring']):
         if any(x in skills for x in ['postgresql', 'mongodb', 'mysql', 'database']):
-            positions.append("Backend Developer")
+            positions.add("Back-End Developer")
+            positions.add("Software Engineer")
 
-    # DevOps/Cloud positions
-    if any(x in skills for x in ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform']):
-        positions.append("DevOps Engineer")
-        positions.append("Cloud Engineer")
+    # Frontend Development
+    if any(x in skills for x in ['react', 'angular', 'vue', 'javascript', 'typescript', 'html', 'css']):
+        positions.add("Front-End Developer")
+        if any(x in skills for x in ['ui', 'ux', 'design']):
+            positions.add("UI Developer")
 
-    # Data Science positions
-    if any(x in skills for x in ['python', 'pandas', 'numpy', 'scikit-learn', 'pytorch', 'tensorflow']):
-        positions.append("Data Scientist")
-        positions.append("Machine Learning Engineer")
-
-    # Full Stack positions
+    # Full Stack
     if any(x in skills for x in ['react', 'angular', 'vue']) and \
        any(x in skills for x in ['python', 'nodejs', 'java']):
-        positions.append("Full Stack Developer")
+        positions.add("Full Stack Developer")
 
-    # API/Integration positions
-    if any(x in skills for x in ['rest', 'api', 'graphql', 'microservices']):
-        positions.append("API Integration Engineer")
+    # DevOps/Cloud/Platform
+    if any(x in skills for x in ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform']):
+        positions.add("DevOps Engineer")
+        positions.add("Cloud Engineer")
+        positions.add("Platform Engineer")
+        if 'kubernetes' in skills:
+            positions.add("Site Reliability Engineer")
 
-    return positions if positions else ["Entry Level Developer"]
+    # Data Science and ML
+    if any(x in skills for x in ['python', 'pandas', 'numpy', 'scikit-learn', 'pytorch', 'tensorflow']):
+        positions.add("Data Scientist")
+        positions.add("Machine Learning Engineer")
+        if any(x in skills for x in ['nlp', 'natural language']):
+            positions.add("NLP Engineer")
+        if any(x in skills for x in ['computer vision', 'opencv']):
+            positions.add("Computer Vision Engineer")
+        if any(x in skills for x in ['mlops', 'ml pipeline']):
+            positions.add("MLOps Engineer")
+
+    # Data Engineering
+    if any(x in skills for x in ['sql', 'database', 'etl', 'data warehouse', 'big data']):
+        positions.add("Data Engineer")
+        positions.add("Database Administrator")
+        if any(x in skills for x in ['tableau', 'power bi', 'analytics']):
+            positions.add("Business Intelligence Analyst")
+            positions.add("Data Analyst")
+
+    # Security
+    if any(x in skills for x in ['security', 'cryptography', 'penetration testing', 'ethical hacking']):
+        positions.add("Security Engineer")
+        positions.add("Information Security Analyst")
+        if 'cloud' in skills:
+            positions.add("Cloud Security Engineer")
+
+    # API/Integration
+    if any(x in skills for x in ['rest', 'api', 'graphql', 'microservices', 'integration']):
+        positions.add("API Integration Engineer")
+        positions.add("Software Architect")
+
+    # Mobile Development
+    if 'android' in skills or 'kotlin' in skills:
+        positions.add("Android Developer")
+        positions.add("Mobile Developer")
+    if 'ios' in skills or 'swift' in skills:
+        positions.add("iOS Developer")
+        positions.add("Mobile Developer")
+
+    # Emerging Tech
+    if 'blockchain' in skills or 'web3' in skills:
+        positions.add("Blockchain Developer")
+        positions.add("Web3 Developer")
+    if any(x in skills for x in ['llm', 'gpt', 'language model']):
+        positions.add("LLM Engineer")
+        positions.add("Prompt Engineer")
+    if 'iot' in skills:
+        positions.add("IoT Engineer")
+    if any(x in skills for x in ['ar', 'vr', 'unity', 'unreal']):
+        positions.add("AR/VR Developer")
+
+    # If no specific positions found, suggest entry-level positions
+    if not positions:
+        return ["Entry Level Developer", "Junior Software Engineer"]
+
+    return sorted(list(positions))
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
