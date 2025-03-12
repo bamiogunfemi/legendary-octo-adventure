@@ -25,6 +25,9 @@ class ScoringEngine:
                 st.warning("No CV text content available for analysis")
                 return self._create_empty_result("No CV content available")
 
+            # Display required skills from job description
+            st.write("\nRequired Skills:", ", ".join(job_requirements.get('required_skills', [])))
+
             # Extract technical skills from CV content
             extracted_skills = self.nlp_matcher.extract_technical_skills(cv_text)
 
@@ -54,6 +57,11 @@ class ScoringEngine:
                 # Check nice-to-have skills
                 nice_to_have = set(job_requirements.get('nice_to_have_skills', []))
                 matched_nice_to_have = list(set(all_skills) & nice_to_have)
+
+                # Display skills matching results
+                st.write("\nRequired Skills Found:", ", ".join(matched_required) if matched_required else "None")
+                if missing_critical:
+                    st.write("Missing Required Skills:", ", ".join(missing_critical))
 
                 # Add to notes
                 if matched_required:

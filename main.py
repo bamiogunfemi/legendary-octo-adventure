@@ -143,7 +143,7 @@ Nice to have
                         'cv_link': cv_dict['cv_link'],
                         'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
-                        'all_skills': ", ".join(cv_dict['skills']),  # All technical skills
+                        'technical_skills': ", ".join(cv_dict['skills']),  # All technical skills
                         'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Required skills found
                         'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),
                         'missing_skills': ", ".join(result.get('missing_critical_skills', [])),
@@ -192,8 +192,8 @@ Nice to have
                             "Years of Experience",
                             format="%.1f"
                         ),
-                        "all_skills": st.column_config.TextColumn(
-                            "All Technical Skills",
+                        "technical_skills": st.column_config.TextColumn(
+                            "Technical Skills",
                             help="All technical skills found in the CV"
                         ),
                         "required_skills": st.column_config.TextColumn(
