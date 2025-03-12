@@ -47,8 +47,7 @@ def parse_document_for_experience(cv_url):
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
 
-        # Debug output
-        st.write("Processing CV URL:", cv_url)
+        # Process CV url and content extraction code remains the same...
 
         if 'drive.google.com' in cv_url:
             # Handle Google Drive files
@@ -84,7 +83,6 @@ def parse_document_for_experience(cv_url):
                 content = file_buffer.read()
 
                 # Log metadata for debugging
-                st.write("File MIME Type:", mime_type)
 
             except json.JSONDecodeError:
                 return None, None, "Invalid JSON format in Google credentials"
@@ -142,7 +140,6 @@ def parse_document_for_experience(cv_url):
             for line in lines:
                 if line.strip():
                     first_line = line.strip()
-                    st.write("First Line Found:", first_line)
                     break
 
             if not first_line:
@@ -236,7 +233,6 @@ def parse_job_description(jd_text, custom_years=None):
                 for next_line in lines[lines.index(line) + 1:]:
                     if next_line.strip():
                         job_requirements['role'] = next_line.strip()
-                        st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
                         break
                 continue
 
@@ -281,18 +277,7 @@ def parse_job_description(jd_text, custom_years=None):
         # Default to "Backend Integration Engineer" if no role detected
         if not job_requirements['role'] and "backend integration engineer" in jd_text.lower():
             job_requirements['role'] = "Backend Integration Engineer"
-            st.sidebar.info(f"✅ Detected Role: {job_requirements['role']}")
 
-        # Show parsed skills
-        if job_requirements['required_skills']:
-            st.sidebar.info("✅ Required Skills:")
-            for skill in job_requirements['required_skills']:
-                st.sidebar.markdown(f"• {skill}")
-
-        if job_requirements['nice_to_have_skills']:
-            st.sidebar.info("✅ Nice to Have Skills:")
-            for skill in job_requirements['nice_to_have_skills']:
-                st.sidebar.markdown(f"• {skill}")
 
         return job_requirements
 
