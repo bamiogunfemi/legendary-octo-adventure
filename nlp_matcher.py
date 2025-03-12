@@ -51,7 +51,7 @@ class NLPMatcher:
 
         # Extract skills using patterns
         for category, pattern in self.tech_skills_patterns.items():
-            matches = re.finditer(pattern, text)
+            matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
                 skill = match.group(0)
                 # Normalize skill names
@@ -63,17 +63,24 @@ class NLPMatcher:
             'rest', 'restful', 'api', 'graphql', 'microservices', 'oauth',
             'jwt', 'saml', 'http', 'https', 'tcp/ip', 'webhooks', 'soa',
             'soap', 'grpc', 'openapi', 'swagger', 'postman', 'curl',
-            'iac', 'github actions', 'argocd', 'k8s'
+            'iac', 'github actions', 'argocd', 'k8s', 'testing'
         }
 
         # Look for terms in context
         words = word_tokenize(text)
         for i, word in enumerate(words):
-            if word.lower() in common_tech_terms:
-                found_skills.add(word.lower())
-            # Check for compound terms
+            word_lower = word.lower()
+            # Check single words
+            if word_lower in common_tech_terms:
+                found_skills.add(word_lower)
+            # Check compound terms (2 words)
             if i < len(words) - 1:
-                compound = f"{word.lower()} {words[i+1].lower()}"
+                compound = f"{word_lower} {words[i+1].lower()}"
+                if compound in common_tech_terms:
+                    found_skills.add(compound)
+            # Check compound terms (3 words)
+            if i < len(words) - 2:
+                compound = f"{word_lower} {words[i+1].lower()} {words[i+2].lower()}"
                 if compound in common_tech_terms:
                     found_skills.add(compound)
 
@@ -100,10 +107,22 @@ class NLPMatcher:
             'restful api': 'rest api',
             'webservices': 'web services',
             'argo cd': 'argocd',
-            'ci/cd': 'ci/cd'
+            'ci/cd': 'ci/cd',
+            'aws cloud': 'aws',
+            'amazon web services': 'aws',
+            'google cloud platform': 'gcp',
+            'automated testing': 'testing',
+            'test automation': 'testing',
+            'unit testing': 'testing',
+            'integration testing': 'testing'
         }
 
         skill = skill.lower().strip()
+        # Remove common prefixes/suffixes
+        skill = re.sub(r'^(?:experienced in |proficient in |knowledge of |expertise in )', '', skill)
+        skill = re.sub(r'(?:development|programming|engineer)$', '', skill)
+        skill = skill.strip()
+
         return replacements.get(skill, skill)
 
     def get_skill_similarity(self, candidate_skill, required_skill):
@@ -156,8 +175,24 @@ class NLPMatcher:
         st.write("Required Skills:", required_skills)
         st.write("Candidate Skills:", candidate_skills)
 
+        # Normalize all skills first
+        normalized_candidate_skills = [self.normalize_skill_name(skill) for skill in candidate_skills]
+        normalized_required_skills = [self.normalize_skill_name(skill) for skill in required_skills]
+
         for req_skill in required_skills:
-            # Find best matching candidate skill
+            normalized_req = self.normalize_skill_name(req_skill)
+            # First try exact matches
+            if normalized_req in normalized_candidate_skills:
+                matched_skills.append({
+                    'required': req_skill,
+                    'matched': req_skill,
+                    'similarity': 1.0
+                })
+                total_score += 1.0
+                st.write(f"\nExact match found for '{req_skill}'")
+                continue
+
+            # If no exact match, try fuzzy matching
             best_match = max(
                 [(cand_skill, self.get_skill_similarity(cand_skill, req_skill)) 
                  for cand_skill in candidate_skills],
@@ -168,7 +203,7 @@ class NLPMatcher:
             st.write(f"\nMatching '{req_skill}':")
             st.write(f"Best match: '{best_match[0]}' (similarity: {best_match[1]:.2f})")
 
-            # Lower threshold for matching from 0.6 to 0.5
+            # Lower threshold for matching
             if best_match[1] > 0.5:  # Reduced threshold for considering a match
                 matched_skills.append({
                     'required': req_skill,
@@ -182,7 +217,9 @@ class NLPMatcher:
 
         avg_score = (total_score / len(required_skills)) * 100
         st.write(f"\nFinal matching score: {avg_score:.2f}%")
-        return avg_score, matched_skills
+
+        # Return only the matched skills without similarity scores
+        return avg_score, [match['matched'] for match in matched_skills]
 
     def preprocess_text(self, text):
         """Advanced text preprocessing"""
