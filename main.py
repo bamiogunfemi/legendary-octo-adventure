@@ -4,7 +4,40 @@ from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
 from utils import parse_job_description, prepare_export_data, calculate_years_experience
 from datetime import datetime
-from nlp_matcher import NLPMatcher  # Import the class instead of the module
+from nlp_matcher import NLPMatcher
+
+def suggest_positions(technical_skills):
+    """Suggest potential positions based on technical skills"""
+    positions = []
+
+    # Convert skills list to lowercase for matching
+    skills = [skill.lower() for skill in technical_skills]
+
+    # Backend Development positions
+    if any(x in skills for x in ['python', 'java', 'nodejs', 'django', 'flask', 'fastapi']):
+        if any(x in skills for x in ['postgresql', 'mongodb', 'mysql', 'database']):
+            positions.append("Backend Developer")
+
+    # DevOps/Cloud positions
+    if any(x in skills for x in ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform']):
+        positions.append("DevOps Engineer")
+        positions.append("Cloud Engineer")
+
+    # Data Science positions
+    if any(x in skills for x in ['python', 'pandas', 'numpy', 'scikit-learn', 'pytorch', 'tensorflow']):
+        positions.append("Data Scientist")
+        positions.append("Machine Learning Engineer")
+
+    # Full Stack positions
+    if any(x in skills for x in ['react', 'angular', 'vue']) and \
+       any(x in skills for x in ['python', 'nodejs', 'java']):
+        positions.append("Full Stack Developer")
+
+    # API/Integration positions
+    if any(x in skills for x in ['rest', 'api', 'graphql', 'microservices']):
+        positions.append("API Integration Engineer")
+
+    return positions if positions else ["Entry Level Developer"]
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -13,7 +46,7 @@ def main():
     # Initialize components
     google_client = GoogleSheetClient()
     scoring_engine = ScoringEngine()
-    nlp_matcher = NLPMatcher()  # Create an instance of NLPMatcher
+    nlp_matcher = NLPMatcher()
 
     # Sidebar for job description input
     st.sidebar.header("Job Description")
@@ -120,7 +153,7 @@ Nice to have
 
                     # Extract technical skills and display them
                     if isinstance(cv_content, str) and cv_content:
-                        extracted_skills = nlp_matcher.extract_technical_skills(cv_content)  # Use the instance method
+                        extracted_skills = nlp_matcher.extract_technical_skills(cv_content)
                         st.write("\nAll Technical Skills Found:", ", ".join(extracted_skills))
 
                     # Create CV dictionary
@@ -148,13 +181,14 @@ Nice to have
                         'cv_link': cv_dict['cv_link'],
                         'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
-                        'technical_skills': ", ".join(result.get('technical_skills', [])),  # All technical skills
-                        'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Required skills found
-                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),  # Nice-to-have skills
-                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])),  # Missing skills
+                        'technical_skills': ", ".join(result.get('technical_skills', [])) or "None",
+                        'required_skills': ", ".join(result.get('matched_required_skills', [])) or "None",
+                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])) or "None",
+                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])) or "None",
                         'overall_score': result['overall_score'],
                         'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else '',
-                        'notes': result.get('evaluation_notes', '')
+                        'notes': result.get('evaluation_notes', ''),
+                        'suggested_positions': ", ".join(suggest_positions(result.get('technical_skills', [])))
                     }
 
                     # Add to results
@@ -218,7 +252,11 @@ Nice to have
                             format="%.1f"
                         ),
                         "document_errors": "CV Processing Issues",
-                        "notes": "Evaluation Notes"
+                        "notes": "Evaluation Notes",
+                        "suggested_positions": st.column_config.TextColumn(
+                            "Suggested Positions",
+                            help="Potential roles based on technical skills"
+                        )
                     }
                 )
 
