@@ -10,12 +10,24 @@ import streamlit as st
 
 class NLPMatcher:
     def __init__(self):
-        # Download required NLTK data
+        # Download required NLTK data with proper error handling
+        self.stop_words = set()
+        self.lemmatizer = None
+
         try:
-            nltk.download('punkt', quiet=True)
-            nltk.download('stopwords', quiet=True)
-            nltk.download('wordnet', quiet=True)
-            nltk.download('averaged_perceptron_tagger', quiet=True)
+            # Create nltk_data directory if it doesn't exist
+            import os
+            nltk_data_dir = os.path.expanduser('~/nltk_data')
+            os.makedirs(nltk_data_dir, exist_ok=True)
+
+            # Download required NLTK data
+            for package in ['punkt', 'stopwords', 'wordnet', 'averaged_perceptron_tagger']:
+                try:
+                    nltk.download(package, quiet=True, raise_on_error=True)
+                except Exception as e:
+                    st.warning(f"Failed to download NLTK package {package}: {str(e)}")
+
+            # Initialize components
             self.stop_words = set(stopwords.words('english'))
             self.lemmatizer = WordNetLemmatizer()
 
@@ -48,11 +60,12 @@ class NLPMatcher:
 
         # Extract all skills using patterns
         for pattern in self.tech_skills_patterns.values():
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                skill = match.group(0)
-                skill = self.normalize_skill_name(skill)
-                found_skills.add(skill)
+            if self.stop_words:  # Only process if NLTK is properly initialized
+                matches = re.finditer(pattern, text, re.IGNORECASE)
+                for match in matches:
+                    skill = match.group(0)
+                    skill = self.normalize_skill_name(skill)
+                    found_skills.add(skill)
 
         # Additional common tech terms
         common_tech_terms = {
@@ -67,20 +80,28 @@ class NLPMatcher:
             'cybersecurity', 'networking', 'infrastructure'
         }
 
-        # Extract multi-word terms
-        words = word_tokenize(text)
-        for i, word in enumerate(words):
-            word_lower = word.lower()
-            if word_lower in common_tech_terms:
-                found_skills.add(word_lower)
-            if i < len(words) - 1:
-                two_words = f"{word_lower} {words[i+1].lower()}"
-                if two_words in common_tech_terms:
-                    found_skills.add(two_words)
-            if i < len(words) - 2:
-                three_words = f"{word_lower} {words[i+1].lower()} {words[i+2].lower()}"
-                if three_words in common_tech_terms:
-                    found_skills.add(three_words)
+        # Extract multi-word terms if NLTK is initialized
+        if self.stop_words:
+            try:
+                words = word_tokenize(text)
+                for i, word in enumerate(words):
+                    word_lower = word.lower()
+                    if word_lower in common_tech_terms:
+                        found_skills.add(word_lower)
+                    if i < len(words) - 1:
+                        two_words = f"{word_lower} {words[i+1].lower()}"
+                        if two_words in common_tech_terms:
+                            found_skills.add(two_words)
+                    if i < len(words) - 2:
+                        three_words = f"{word_lower} {words[i+1].lower()} {words[i+2].lower()}"
+                        if three_words in common_tech_terms:
+                            found_skills.add(three_words)
+            except Exception as e:
+                st.warning(f"Error in skill extraction: {str(e)}")
+                # Fall back to simple pattern matching
+                for term in common_tech_terms:
+                    if term in text.lower():
+                        found_skills.add(term)
 
         return sorted(list(found_skills))
 
@@ -107,7 +128,7 @@ class NLPMatcher:
 
             # Try fuzzy matching
             best_match = max(
-                [(cand_skill, self.get_skill_similarity(cand_skill, req_skill)) 
+                [(cand_skill, self.get_skill_similarity(cand_skill, req_skill))
                  for cand_skill in candidate_skills],
                 key=lambda x: x[1]
             )
@@ -170,17 +191,22 @@ class NLPMatcher:
         if skill1 == skill2:
             return 1.0
 
-        # Jaccard similarity for tokens
-        tokens1 = set(self.preprocess_text(skill1))
-        tokens2 = set(self.preprocess_text(skill2))
+        try:
+            # Jaccard similarity for tokens if NLTK is available
+            if self.stop_words:
+                tokens1 = set(self.preprocess_text(skill1))
+                tokens2 = set(self.preprocess_text(skill2))
 
-        intersection = len(tokens1 & tokens2)
-        union = len(tokens1 | tokens2)
+                intersection = len(tokens1 & tokens2)
+                union = len(tokens1 | tokens2)
 
-        if union == 0:
+                return intersection / union if union > 0 else 0.0
+            else:
+                # Fall back to simple string matching
+                return 1.0 if skill1 == skill2 else 0.0
+        except Exception as e:
+            st.warning(f"Error in skill similarity comparison: {str(e)}")
             return 0.0
-
-        return intersection / union
 
     def preprocess_text(self, text):
         """Preprocess text for comparison"""
@@ -190,13 +216,17 @@ class NLPMatcher:
         text = text.lower()
         text = re.sub(r'[^\w\s]', ' ', text)
 
-        tokens = word_tokenize(text)
-        if self.lemmatizer:
-            tokens = [self.lemmatizer.lemmatize(token) for token in tokens if token not in self.stop_words]
-        else:
-            tokens = [token for token in tokens if token not in self.stop_words]
-
-        return tokens
+        try:
+            if self.stop_words and self.lemmatizer:
+                tokens = word_tokenize(text)
+                tokens = [self.lemmatizer.lemmatize(token) for token in tokens if token not in self.stop_words]
+                return tokens
+            else:
+                # Fall back to simple word splitting
+                return text.split()
+        except Exception as e:
+            st.warning(f"Error in text preprocessing: {str(e)}")
+            return text.split()
 
     def compute_tf_idf(self, text, document_set):
         """Compute TF-IDF scores for terms"""
