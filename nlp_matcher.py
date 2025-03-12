@@ -1,56 +1,26 @@
-import nltk
-from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from nltk.metrics.distance import edit_distance
-from collections import Counter
 import re
 import math
 import streamlit as st
+from collections import Counter
 
 class NLPMatcher:
     def __init__(self):
-        # Initialize without NLTK dependencies first
-        self.stop_words = set()
-        self.lemmatizer = None
-        self.nltk_available = False
+        # Simple text processing without NLTK
+        self.tokenize = lambda text: text.lower().split()
 
-        try:
-            # Simple word splitting function that doesn't require NLTK
-            self.tokenize = lambda text: text.lower().split()
-
-            # Try to initialize NLTK components
-            import os
-            nltk_data_dir = os.path.expanduser('~/nltk_data')
-            os.makedirs(nltk_data_dir, exist_ok=True)
-
-            # Download only essential NLTK data
-            try:
-                nltk.download('punkt', quiet=True)
-                nltk.download('stopwords', quiet=True)
-                self.stop_words = set(stopwords.words('english'))
-                self.tokenize = word_tokenize  # Use NLTK tokenizer if available
-                self.nltk_available = True
-            except Exception as e:
-                st.warning(f"NLTK initialization warning (using simple tokenizer): {str(e)}")
-
-            # Enhanced technical skills patterns
-            self.tech_skills_patterns = {
-                'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab|cobol|assembly|haskell|f#|clojure|erlang)\b',
-                'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?|nuxt|gatsby|svelte)\b',
-                'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle|cockroach(?:db)?|neo4j|sqlite|mariadb)\b',
-                'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?|cloudformation|openstack)\b',
-                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation|playwright|testcafe)\b',
-                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions|spinnaker|harness)\b',
-                'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp|prometheus|grafana|istio|consul)\b',
-                'api': r'\b(rest(?:ful)?|api|graphql|webhook|http[s]?|grpc|soap|openapi|swagger)\b',
-                'security': r'\b(oauth|jwt|saml|ssl|tls|vpn|encryption|authentication|authorization|firewall)\b',
-                'data_science': r'\b(tensorflow|pytorch|keras|scikit-learn|pandas|numpy|matplotlib|tableau|power bi|machine learning|deep learning)\b'
-            }
-
-        except Exception as e:
-            st.error(f"Error initializing NLP components: {str(e)}")
-            self.tech_skills_patterns = {}
+        # Enhanced technical skills patterns
+        self.tech_skills_patterns = {
+            'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab|cobol|assembly|haskell|f#|clojure|erlang)\b',
+            'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?|nuxt|gatsby|svelte)\b',
+            'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle|cockroach(?:db)?|neo4j|sqlite|mariadb)\b',
+            'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?|cloudformation|openstack)\b',
+            'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation|playwright|testcafe)\b',
+            'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions|spinnaker|harness)\b',
+            'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp|prometheus|grafana|istio|consul)\b',
+            'api': r'\b(rest(?:ful)?|api|graphql|webhook|http[s]?|grpc|soap|openapi|swagger)\b',
+            'security': r'\b(oauth|jwt|saml|ssl|tls|vpn|encryption|authentication|authorization|firewall)\b',
+            'data_science': r'\b(tensorflow|pytorch|keras|scikit-learn|pandas|numpy|matplotlib|tableau|power bi|machine learning|deep learning)\b'
+        }
 
     def extract_technical_skills(self, text):
         """Extract technical skills from text using regex patterns"""
@@ -81,7 +51,7 @@ class NLPMatcher:
             'cybersecurity', 'networking', 'infrastructure'
         }
 
-        # Simple word matching without NLTK dependencies
+        # Simple word matching
         words = self.tokenize(text)
         for i, word in enumerate(words):
             if word in common_tech_terms:
@@ -119,10 +89,20 @@ class NLPMatcher:
                 total_score += 1
                 continue
 
-            # Try fuzzy matching with simple string comparison
+            # Try simple string comparison
             best_match = (None, 0)
             for cand_skill in candidate_skills:
-                similarity = self.get_skill_similarity(cand_skill, req_skill)
+                # Calculate string similarity
+                if cand_skill.lower() in req_skill.lower() or req_skill.lower() in cand_skill.lower():
+                    similarity = 0.8
+                else:
+                    # Simple character-based similarity
+                    longer = max(len(cand_skill), len(req_skill))
+                    if longer == 0:
+                        similarity = 0
+                    else:
+                        similarity = 1 - (self._levenshtein_distance(cand_skill.lower(), req_skill.lower()) / longer)
+
                 if similarity > best_match[1]:
                     best_match = (cand_skill, similarity)
 
@@ -132,6 +112,26 @@ class NLPMatcher:
 
         avg_score = (total_score / len(required_skills)) * 100 if required_skills else 0
         return avg_score, matched_skills
+
+    def _levenshtein_distance(self, s1, s2):
+        """Calculate the Levenshtein distance between two strings"""
+        if len(s1) < len(s2):
+            return self._levenshtein_distance(s2, s1)
+
+        if len(s2) == 0:
+            return len(s1)
+
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+
+        return previous_row[-1]
 
     def normalize_skill_name(self, skill):
         """Normalize skill names to standard format"""
@@ -174,55 +174,17 @@ class NLPMatcher:
 
         return replacements.get(skill, skill)
 
-    def get_skill_similarity(self, skill1, skill2):
-        """Compute similarity between two skills"""
-        if not skill1 or not skill2:
-            return 0.0
-
-        # Normalize both skills
-        skill1 = self.normalize_skill_name(skill1)
-        skill2 = self.normalize_skill_name(skill2)
-
-        # Exact match after normalization
-        if skill1 == skill2:
-            return 1.0
-
-        # Simple string comparison if NLTK is not available
-        if not self.nltk_available:
-            # Check if one string contains the other
-            if skill1 in skill2 or skill2 in skill1:
-                return 0.8
-            # Use basic string similarity
-            max_len = max(len(skill1), len(skill2))
-            if max_len == 0:
-                return 0.0
-            distance = edit_distance(skill1, skill2)
-            return 1.0 - (distance / max_len)
-
-        # Use NLTK for more sophisticated comparison if available
-        try:
-            tokens1 = set(self.tokenize(skill1))
-            tokens2 = set(self.tokenize(skill2))
-
-            intersection = len(tokens1 & tokens2)
-            union = len(tokens1 | tokens2)
-
-            return intersection / union if union > 0 else 0.0
-        except Exception as e:
-            st.warning(f"Error in skill similarity comparison: {str(e)}")
-            return 0.0
-
     def compute_tf_idf(self, text, document_set):
         """Compute TF-IDF scores for terms"""
         # Term frequency in the text
-        tf = Counter(text)
+        tf = Counter(self.tokenize(text))
 
         # Inverse document frequency
         idf = {}
         doc_count = len(document_set)
 
         for term in tf:
-            doc_with_term = sum(1 for doc in document_set if term in doc)
+            doc_with_term = sum(1 for doc in document_set if term in self.tokenize(doc))
             idf[term] = math.log(doc_count / (1 + doc_with_term))
 
         # Compute TF-IDF
@@ -235,8 +197,8 @@ class NLPMatcher:
             return 0, "No role information provided"
 
         # Preprocess roles
-        candidate_tokens = set(self.preprocess_text(candidate_role))
-        required_tokens = set(self.preprocess_text(required_role))
+        candidate_tokens = set(self.tokenize(candidate_role))
+        required_tokens = set(self.tokenize(required_role))
 
         # Direct token overlap
         overlap_score = len(candidate_tokens & required_tokens) / len(required_tokens) if required_tokens else 0
@@ -256,14 +218,27 @@ class NLPMatcher:
 
         text = text.lower()
         text = re.sub(r'[^\w\s]', ' ', text)
+        return self.tokenize(text)
 
-        try:
-            if self.stop_words and self.lemmatizer:
-                tokens = self.tokenize(text)
-                tokens = [self.lemmatizer.lemmatize(token) for token in tokens if token not in self.stop_words]
-                return tokens
-            else:
-                return self.tokenize(text)
-        except Exception as e:
-            st.warning(f"Error in text preprocessing: {str(e)}")
-            return self.tokenize(text)
+    def get_skill_similarity(self, skill1, skill2):
+        """Compute similarity between two skills"""
+        if not skill1 or not skill2:
+            return 0.0
+
+        # Normalize both skills
+        skill1 = self.normalize_skill_name(skill1)
+        skill2 = self.normalize_skill_name(skill2)
+
+        # Exact match after normalization
+        if skill1 == skill2:
+            return 1.0
+
+        # Simple string comparison
+        if skill1 in skill2 or skill2 in skill1:
+            return 0.8
+        # Use basic string similarity
+        max_len = max(len(skill1), len(skill2))
+        if max_len == 0:
+            return 0.0
+        distance = self._levenshtein_distance(skill1, skill2)
+        return 1.0 - (distance / max_len)
