@@ -198,7 +198,10 @@ Nice to have
                         'missing_required_skills': ", ".join(result.get('missing_critical_skills', [])) or "None",
                         'missing_nice_to_have': ", ".join(result.get('missing_nice_to_have', [])) or "None",
                         'overall_score': result['overall_score'],
-                        'suggested_positions': ", ".join(suggest_positions(result.get('technical_skills', []))) or "None"
+                        'skills_score': result['skills_score'],
+                        'experience_score': result['experience_score'],
+                        'suggested_positions': ", ".join(suggest_positions(result.get('technical_skills', []))) or "None",
+                        'evaluation_notes': result.get('evaluation_notes', '')
                     }
 
                     # Add to results
@@ -215,7 +218,7 @@ Nice to have
                 st.header("Evaluation Results")
 
                 # Summary metrics
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4, col5 = st.columns(5)
                 with col1:
                     st.metric("CVs Processed", len(results))
                 with col2:
@@ -224,6 +227,12 @@ Nice to have
                 with col3:
                     avg_score = results_df['overall_score'].mean()
                     st.metric("Average Score", f"{avg_score:.1f}")
+                with col4:
+                    avg_skills = results_df['skills_score'].mean()
+                    st.metric("Avg Skills Score", f"{avg_skills:.1f}")
+                with col5:
+                    avg_exp = results_df['experience_score'].mean()
+                    st.metric("Avg Experience Score", f"{avg_exp:.1f}")
 
                 # Detailed results table
                 st.write("### Detailed Results")
@@ -257,13 +266,28 @@ Nice to have
                             "Missing Nice-to-Have Skills",
                             help="Nice-to-have skills not found in the CV"
                         ),
+                        "skills_score": st.column_config.NumberColumn(
+                            "Skills Score",
+                            format="%.1f",
+                            help="Score based on technical skills match (0-100)"
+                        ),
+                        "experience_score": st.column_config.NumberColumn(
+                            "Experience Score",
+                            format="%.1f",
+                            help="Score based on experience match (0-100)"
+                        ),
                         "overall_score": st.column_config.NumberColumn(
-                            "Match Score (%)",
-                            format="%.1f"
+                            "Overall Score",
+                            format="%.1f",
+                            help="Final score (average of Skills and Experience scores)"
                         ),
                         "suggested_positions": st.column_config.TextColumn(
                             "Suggested Positions",
                             help="Potential roles based on technical skills"
+                        ),
+                        "evaluation_notes": st.column_config.TextColumn(
+                            "Score Breakdown",
+                            help="Detailed breakdown of scoring components"
                         )
                     }
                 )
