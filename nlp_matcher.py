@@ -26,9 +26,10 @@ class NLPMatcher:
                 'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle)\b',
                 'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?)\b',
                 'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation)\b',
-                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm)\b',
+                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions)\b',
                 'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp)\b',
-                'data_engineering': r'\b(spark|hadoop|kafka|airflow|databricks|snowflake|etl|data pipeline)\b'
+                'data_engineering': r'\b(spark|hadoop|kafka|airflow|databricks|snowflake|etl|data pipeline)\b',
+                'api': r'\b(rest(?:ful)?|api|graphql|webhook|http[s]?)\b'
             }
 
         except Exception as e:
@@ -61,7 +62,8 @@ class NLPMatcher:
         common_tech_terms = {
             'rest', 'restful', 'api', 'graphql', 'microservices', 'oauth',
             'jwt', 'saml', 'http', 'https', 'tcp/ip', 'webhooks', 'soa',
-            'soap', 'grpc', 'openapi', 'swagger', 'postman', 'curl'
+            'soap', 'grpc', 'openapi', 'swagger', 'postman', 'curl',
+            'iac', 'github actions', 'argocd', 'k8s'
         }
 
         # Look for terms in context
@@ -93,6 +95,12 @@ class NLPMatcher:
             'vuejs': 'vue',
             'postgres': 'postgresql',
             'k8s': 'kubernetes',
+            'github actions': 'github actions',
+            'restful': 'rest',
+            'restful api': 'rest api',
+            'webservices': 'web services',
+            'argo cd': 'argocd',
+            'ci/cd': 'ci/cd'
         }
 
         skill = skill.lower().strip()
@@ -145,8 +153,8 @@ class NLPMatcher:
 
         # Log the matching process
         st.write("\nSkill Matching Process:")
-        st.write("Candidate Skills:", candidate_skills)
         st.write("Required Skills:", required_skills)
+        st.write("Candidate Skills:", candidate_skills)
 
         for req_skill in required_skills:
             # Find best matching candidate skill

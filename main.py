@@ -2,64 +2,8 @@ import streamlit as st
 import pandas as pd
 from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
-from utils import parse_job_description, prepare_export_data
+from utils import parse_job_description, prepare_export_data, calculate_years_experience
 from datetime import datetime
-
-def parse_document_for_experience(cv_url):
-    """Parse experience from a CV URL and log content."""
-    try:
-        if not cv_url or not cv_url.strip():
-            st.warning("No CV URL provided")
-            return datetime(2020,1,1), "No CV URL", None
-            
-        # Log the CV URL being processed
-        st.write(f"Processing CV URL: {cv_url}")
-        
-        # Import utilities for document parsing
-        from utils import parse_document_for_experience as utils_parse_document
-        
-        # Use the implementation from utils
-        start_date, first_line, error = utils_parse_document(cv_url)
-        
-        # If there's content available from utils parsing, display it
-        if error and "CV Content" not in error:
-            # Show placeholder data since we couldn't parse the actual CV
-            st.write("Using placeholder data due to parsing error:", error)
-            return datetime(2020,1,1), "Placeholder First Line", error
-            
-        return start_date or datetime(2020,1,1), first_line or "Placeholder First Line", error
-
-    except Exception as e:
-        st.error(f"Error in parse_document_for_experience: {str(e)}")
-        return None, "", str(e)
-
-
-def calculate_years_experience(cv_url, start_date_str):
-    """Calculate years of experience from CV or start date"""
-    try:
-        # Try to get start date from CV first
-        if cv_url and cv_url.strip():
-            start_date, first_line, cv_content = parse_document_for_experience(cv_url)
-            if start_date:
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), first_line, cv_content
-            elif isinstance(cv_content, str) and "CV Content" in cv_content:
-                return 0, first_line, cv_content
-            else:
-                return 0, first_line, cv_content if cv_content else None
-
-        # Fallback to start date from sheet
-        if start_date_str and not pd.isna(start_date_str):
-            try:
-                start_date = pd.to_datetime(start_date_str)
-                years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), "", None
-            except Exception as e:
-                return 0, "", f"Invalid date format: {str(e)}"
-
-        return 0, "", "No experience date provided"
-    except Exception as e:
-        return 0, "", str(e)
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -77,20 +21,20 @@ def main():
         help="Enter the role title"
     )
 
-    # Default job description
+    # Default job description from your text
     default_jd = """About You
     • python
-    • RESTful API.
-    • webhooks.
-    • AWS, GCP and Azure. 
-    • ArgoCD, Kubernetes & docker.
-    • postgres and mongodb.
+    • RESTful API
+    • webhooks
+    • AWS, GCP and Azure 
+    • ArgoCD, Kubernetes & docker
+    • postgres and mongodb
     • testing 
-    • Github Actions.
+    • Github Actions
 
 Nice to have
    • Golang 
-   • including IaC (Terraform, CloudFormation).
+   • including IaC (Terraform, CloudFormation)
     """
 
     jd_text = st.sidebar.text_area(
@@ -122,7 +66,7 @@ Nice to have
         help="Enter the range of cells to process"
     )
 
-    if st.sidebar.button("Evaluate First 3 CVs"):
+    if st.sidebar.button("Evaluate CVs"):
         if not jd_text or not sheet_id:
             st.error("Please provide both job description and Google Sheet ID")
             return
@@ -155,12 +99,11 @@ Nice to have
 
                     cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
-                    
 
                     # Create an expander for each CV to contain the details
                     with st.expander(f"Processing CV {index + 1}: {cv_name}", expanded=True):
                         st.write(f"**CV Link:** {cv_link}")
-                        
+
                         # Log additional CV information if available
                         if 'PHONE' in row:
                             st.write(f"**Phone:** {row.get('PHONE', '')}")
@@ -168,7 +111,7 @@ Nice to have
                             st.write(f"**Email:** {row.get('EMAIL', '')}")
 
                     # Calculate years of experience and get first line
-                    years_exp, first_line, exp_error = calculate_years_experience(
+                    years_exp, first_line, cv_content = calculate_years_experience(
                         cv_url=cv_link,
                         start_date_str=row.get('Experience Start Date', '')
                     )
@@ -181,7 +124,7 @@ Nice to have
                         'first_line': first_line,
                         'years_experience': years_exp,
                         'skills': [],
-                        'cv_text': exp_error if "CV Content" in str(exp_error) else ''
+                        'cv_text': cv_content if isinstance(cv_content, str) else ''
                     }
 
                     # Evaluate CV
@@ -198,14 +141,14 @@ Nice to have
                         'nice_to_have_skills': ', '.join(result.get('matched_nice_to_have', [])),
                         'missing_skills': ', '.join(result.get('missing_critical_skills', [])),
                         'overall_score': result['overall_score'],
-                        'document_errors': exp_error if exp_error else '',
+                        'document_errors': cv_content if cv_content and "Error" in str(cv_content) else '',
                         'notes': result.get('evaluation_notes', '')
                     }
 
                     # Add reasons for not suitable candidates
                     reasons = []
-                    if exp_error:
-                        reasons.append(f"CV Processing: {exp_error}")
+                    if isinstance(cv_content, str) and "Error" in cv_content:
+                        reasons.append(f"CV Processing: {cv_content}")
                     if result['reasons']:
                         reasons.extend(result['reasons'])
 
@@ -235,7 +178,7 @@ Nice to have
                     st.metric("Suitable Candidates", suitable_count)
                 with col3:
                     avg_score = results_df['overall_score'].mean()
-                    st.metric("Average Score", f"{avg_score:.2f}")
+                    st.metric("Average Score", f"{avg_score:.1f}")
                 with col4:
                     error_count = len(results_df[results_df['document_errors'].notna() & (results_df['document_errors'] != '')])
                     st.metric("CVs with Errors", error_count)
@@ -258,13 +201,19 @@ Nice to have
                             "First Line of CV",
                             help="First line extracted from the CV document"
                         ),
-                        "years_experience": "Years of Experience",
-                        "required_skills": "Required Skills Found",
+                        "years_experience": st.column_config.NumberColumn(
+                            "Years of Experience",
+                            format="%.1f"
+                        ),
+                        "required_skills": st.column_config.TextColumn(
+                            "Required Skills Found",
+                            help="Skills from the job requirements found in the CV"
+                        ),
                         "nice_to_have_skills": "Nice-to-Have Skills",
                         "missing_skills": "Missing Critical Skills",
                         "overall_score": st.column_config.NumberColumn(
                             "Match Score (%)",
-                            format="%.2f"
+                            format="%.1f"
                         ),
                         "document_errors": "CV Processing Issues",
                         "notes": "Evaluation Notes",
