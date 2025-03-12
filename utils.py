@@ -145,7 +145,9 @@ def parse_document_for_experience(cv_url):
                 r'freelance', r'freelancing', r'contract',
                 r'education', r'university', r'college', r'school',
                 r'certificate', r'certification', r'training',
-                r'intern', r'internship', r'student'
+                r'intern', r'internship', r'student',
+                r'hons\.?', r'b\.?sc\.?', r'bachelor',
+                r'm\.?sc\.?', r'master', r'ph\.?d\.?'
             ]
             exclusion_pattern = '|'.join(exclusion_patterns)
 
@@ -193,7 +195,7 @@ def parse_document_for_experience(cv_url):
             if earliest_date:
                 years_exp = (datetime.now() - earliest_date).days / 365.25
                 st.write(f"Calculated years of experience: {round(years_exp, 1)} years")
-                return earliest_date, first_line, None
+                return earliest_date, first_line, text  # Return the CV text for skills extraction
             else:
                 return None, first_line, "No valid professional experience dates found"
 

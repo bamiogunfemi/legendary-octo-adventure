@@ -39,12 +39,14 @@ def calculate_years_experience(cv_url, start_date_str):
     try:
         # Try to get start date from CV first
         if cv_url and cv_url.strip():
-            start_date, first_line, exp_error = parse_document_for_experience(cv_url)
+            start_date, first_line, cv_content = parse_document_for_experience(cv_url)
             if start_date:
                 years_exp = (datetime.now() - start_date).days / 365.25
-                return round(years_exp, 1), first_line, None
-            elif exp_error:
-                return 0, first_line, exp_error
+                return round(years_exp, 1), first_line, cv_content
+            elif isinstance(cv_content, str) and "CV Content" in cv_content:
+                return 0, first_line, cv_content
+            else:
+                return 0, first_line, cv_content if cv_content else None
 
         # Fallback to start date from sheet
         if start_date_str and not pd.isna(start_date_str):
@@ -154,6 +156,7 @@ Nice to have
                     cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
                     
+
                     # Create an expander for each CV to contain the details
                     with st.expander(f"Processing CV {index + 1}: {cv_name}", expanded=True):
                         st.write(f"**CV Link:** {cv_link}")
