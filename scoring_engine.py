@@ -27,28 +27,36 @@ class ScoringEngine:
 
             # Extract technical skills from CV content
             technical_skills = self.nlp_matcher.extract_technical_skills(cv_text)
-            st.write("\nAll Technical Skills Found:", ", ".join(technical_skills))
+            st.write("\nTechnical Skills Found:", ", ".join(technical_skills))
 
             # Get required and nice-to-have skills from job requirements
             required_skills = job_requirements.get('required_skills', [])
             nice_to_have_skills = job_requirements.get('nice_to_have_skills', [])
+
+            # Display job requirements
+            st.write("\nJob Requirements:")
+            st.write("Required Skills:", ", ".join(required_skills))
+            st.write("Nice-to-Have Skills:", ", ".join(nice_to_have_skills))
 
             # Match required skills
             skills_score, matched_required = self.nlp_matcher.match_skills(
                 technical_skills,
                 required_skills
             )
-            st.write("Required Skills Found:", ", ".join(matched_required) if matched_required else "None")
 
             # Match nice-to-have skills
             _, matched_nice_to_have = self.nlp_matcher.match_skills(
                 technical_skills,
                 nice_to_have_skills
             )
-            st.write("Nice-to-Have Skills Found:", ", ".join(matched_nice_to_have) if matched_nice_to_have else "None")
 
             # Find missing required skills
             missing_skills = list(set(required_skills) - set(matched_required))
+
+            # Display skills matching results
+            st.write("\nSkills Analysis:")
+            st.write("Required Skills Found:", ", ".join(matched_required) if matched_required else "None")
+            st.write("Nice-to-Have Skills Found:", ", ".join(matched_nice_to_have) if matched_nice_to_have else "None")
             st.write("Missing Required Skills:", ", ".join(missing_skills) if missing_skills else "None")
 
             # Calculate overall score based on required skills match
