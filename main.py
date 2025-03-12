@@ -4,7 +4,7 @@ from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
 from utils import parse_job_description, prepare_export_data, calculate_years_experience
 from datetime import datetime
-import nlp_matcher # Added import for nlp_matcher
+from nlp_matcher import NLPMatcher  # Import the class instead of the module
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -13,6 +13,7 @@ def main():
     # Initialize components
     google_client = GoogleSheetClient()
     scoring_engine = ScoringEngine()
+    nlp_matcher = NLPMatcher()  # Create an instance of NLPMatcher
 
     # Sidebar for job description input
     st.sidebar.header("Job Description")
@@ -119,7 +120,7 @@ Nice to have
 
                     # Extract technical skills and display them
                     if isinstance(cv_content, str) and cv_content:
-                        extracted_skills = nlp_matcher.extract_technical_skills(cv_content)
+                        extracted_skills = nlp_matcher.extract_technical_skills(cv_content)  # Use the instance method
                         st.write("\nAll Technical Skills Found:", ", ".join(extracted_skills))
 
                     # Create CV dictionary
