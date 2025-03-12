@@ -51,7 +51,7 @@ def parse_document_for_experience(cv_url):
         st.write("Processing CV URL:", cv_url)
 
         if 'drive.google.com' in cv_url:
-            # Extract file ID and download content using Google Drive API
+            # Handle Google Drive files
             if '/file/d/' in cv_url:
                 file_id = cv_url.split('/file/d/')[1].split('/')[0]
             else:
@@ -208,7 +208,24 @@ def parse_document_for_experience(cv_url):
             if earliest_date:
                 years_exp = (datetime.now() - earliest_date).days / 365.25
                 st.write(f"Calculated years of experience: {round(years_exp, 1)} years")
-                return earliest_date, first_line, text  # Return the CV text for skills extraction
+
+                # Extract technical skills from the text
+                st.write("\nTechnical Skills Found:")
+                technical_patterns = {
+                    'Programming': r'\b(?:python|java(?:script)?|golang|typescript)\b',
+                    'Cloud & DevOps': r'\b(?:aws|azure|gcp|kubernetes|docker|github actions|argocd)\b',
+                    'Databases': r'\b(?:postgres(?:ql)?|mongo(?:db)?)\b',
+                    'APIs': r'\b(?:rest(?:ful)?|api|webhook)\b',
+                    'Testing': r'\b(?:test(?:ing)?|automation)\b'
+                }
+
+                for category, pattern in technical_patterns.items():
+                    matches = re.finditer(pattern, text.lower())
+                    skills = set(match.group(0) for match in matches)
+                    if skills:
+                        st.write(f"- {category}: {', '.join(sorted(skills))}")
+
+                return earliest_date, first_line, text
             else:
                 return None, first_line, "No valid professional experience dates found"
 
