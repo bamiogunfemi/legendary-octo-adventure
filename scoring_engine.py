@@ -19,8 +19,10 @@ class ScoringEngine:
             reasons = []
             notes = []
 
-            # Get CV text
+            # Get CV text and debug log
             cv_text = cv_data.get('cv_text', '')
+            st.write("\nProcessing CV Content (length):", len(cv_text) if cv_text else 0)
+
             if not cv_text:
                 st.warning("No CV text content available for analysis")
                 return self._create_empty_result("No CV content available")

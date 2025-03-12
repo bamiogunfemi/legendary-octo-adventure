@@ -129,8 +129,13 @@ Nice to have
                         'cv_link': cv_link,
                         'first_line': first_line,
                         'years_experience': years_exp,
-                        'cv_text': cv_content if isinstance(cv_content, str) and not cv_content.startswith("Error") else ''
+                        'cv_text': cv_content if isinstance(cv_content, str) else str(cv_content)
                     }
+
+                    # Debug logging for CV content
+                    st.write("\nDebug - CV Content Type:", type(cv_content))
+                    st.write("Debug - CV Text in Dictionary:", bool(cv_dict['cv_text']))
+                    st.write("Debug - CV Text Length:", len(cv_dict['cv_text']) if cv_dict['cv_text'] else 0)
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
