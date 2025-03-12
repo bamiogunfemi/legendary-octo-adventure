@@ -153,17 +153,17 @@ Nice to have
                     st.error("No data found in the specified sheet range")
                     return
 
-                # Process first 3 CVs only
-                cv_data = cv_data.head(3)
-
                 # Process each CV
                 results = []
+                total_cvs = len(cv_data)
                 progress_bar = st.progress(0)
+                progress_text = st.empty()
 
                 for index, row in cv_data.iterrows():
                     # Update progress
-                    progress = (index + 1) / len(cv_data)
+                    progress = (index + 1) / total_cvs
                     progress_bar.progress(progress)
+                    progress_text.text(f"Processing CV {index + 1} of {total_cvs}")
 
                     cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
@@ -207,8 +207,9 @@ Nice to have
                     # Add to results
                     results.append(evaluation)
 
-                # Hide progress bar
+                # Clear progress indicators
                 progress_bar.empty()
+                progress_text.empty()
 
                 # Sort results by overall score
                 results_df = pd.DataFrame(results)
