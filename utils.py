@@ -42,7 +42,7 @@ def get_google_drive_file_url(url):
         return None
 
 def parse_document_for_experience(cv_url):
-    """Parse PDF/DOC CV to extract first non-freelance experience date"""
+    """Parse PDF/DOC CV to extract first professional experience date"""
     try:
         if not cv_url or not cv_url.strip():
             return None, None, "No CV URL provided"
@@ -140,6 +140,15 @@ def parse_document_for_experience(cv_url):
             if not first_line:
                 return None, None, "No readable content found"
 
+            # Define exclusion patterns for non-professional positions
+            exclusion_patterns = [
+                r'freelance', r'freelancing', r'contract',
+                r'education', r'university', r'college', r'school',
+                r'certificate', r'certification', r'training',
+                r'intern', r'internship', r'student'
+            ]
+            exclusion_pattern = '|'.join(exclusion_patterns)
+
             # Parse experience dates using dateparser
             earliest_date = None
             current_section = ""
@@ -159,8 +168,8 @@ def parse_document_for_experience(cv_url):
                 if current_section != "experience":
                     continue
 
-                # Skip freelance positions
-                if re.search(r'freelance|freelancing|contract', line.lower()):
+                # Skip non-professional positions
+                if re.search(exclusion_pattern, line.lower()):
                     continue
 
                 # Extract dates using various patterns
@@ -168,7 +177,7 @@ def parse_document_for_experience(cv_url):
                     r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
                     r'\d{1,2}/\d{4}',
                     r'\d{1,2}-\d{4}',
-                    r'\d{4}'
+                    r'(?:19|20)\d{2}'  # Year pattern limited to reasonable range
                 ]
 
                 for pattern in date_patterns:
@@ -179,12 +188,14 @@ def parse_document_for_experience(cv_url):
                         if parsed_date:
                             if not earliest_date or parsed_date < earliest_date:
                                 earliest_date = parsed_date
-                                st.write(f"Found date: {date_str} -> {parsed_date}")
+                                st.write(f"Found professional experience date: {date_str} -> {parsed_date}")
 
             if earliest_date:
+                years_exp = (datetime.now() - earliest_date).days / 365.25
+                st.write(f"Calculated years of experience: {round(years_exp, 1)} years")
                 return earliest_date, first_line, None
             else:
-                return None, first_line, "No valid experience dates found"
+                return None, first_line, "No valid professional experience dates found"
 
         except Exception as e:
             return None, None, f"Error processing document: {str(e)}"
@@ -342,7 +353,7 @@ def parse_job_description(jd_text, custom_years=None):
 def prepare_export_data(results):
     """Prepare evaluation results for CSV export"""
     export_df = pd.DataFrame(results)
-    export_df = export_df.round(2)
+    export_df = export_df.round(1)
 
     # Reorder columns to show candidate info first
     columns_order = [
