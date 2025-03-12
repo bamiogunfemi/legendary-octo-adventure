@@ -84,11 +84,6 @@ class NLPMatcher:
         matched_skills = []
         total_score = 0
 
-        # Debug logging
-        st.write("\nMatching skills:")
-        st.write("Candidate skills:", ", ".join(candidate_skills))
-        st.write("Required skills:", ", ".join(required_skills))
-
         for req_skill in required_skills:
             req_lower = req_skill.lower().strip()
 
@@ -240,26 +235,6 @@ class NLPMatcher:
         # Compute TF-IDF
         tf_idf = {term: freq * idf[term] for term, freq in tf.items()}
         return tf_idf
-
-    def match_role(self, candidate_role, required_role):
-        """Advanced role matching using context"""
-        if not candidate_role or not required_role:
-            return 0, "No role information provided"
-
-        # Preprocess roles
-        candidate_tokens = set(self.tokenize(candidate_role))
-        required_tokens = set(self.tokenize(required_role))
-
-        # Direct token overlap
-        overlap_score = len(candidate_tokens & required_tokens) / len(required_tokens) if required_tokens else 0
-
-        # Context matching
-        context_score = self.get_skill_similarity(candidate_role, required_role)
-
-        # Combine scores
-        final_score = (overlap_score * 0.6 + context_score * 0.4) * 100
-
-        return final_score, "Role context match: {:.1f}%".format(final_score)
 
     def preprocess_text(self, text):
         """Preprocess text for comparison"""
