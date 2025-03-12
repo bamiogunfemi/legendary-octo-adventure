@@ -1,6 +1,6 @@
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.corpus import stopwords, wordnet
+from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.metrics.distance import edit_distance
 from collections import Counter
@@ -21,14 +21,16 @@ class NLPMatcher:
 
             # Enhanced technical skills patterns
             self.tech_skills_patterns = {
-                'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#)\b',
-                'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?)\b',
-                'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle)\b',
-                'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?)\b',
-                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation)\b',
-                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions)\b',
-                'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp)\b',
-                'api': r'\b(rest(?:ful)?|api|graphql|webhook|http[s]?)\b'
+                'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#|perl|r|matlab|cobol|assembly|haskell|f#|clojure|erlang)\b',
+                'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?|nuxt|gatsby|svelte)\b',
+                'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle|cockroach(?:db)?|neo4j|sqlite|mariadb)\b',
+                'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?|cloudformation|openstack)\b',
+                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation|playwright|testcafe)\b',
+                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm|github actions|spinnaker|harness)\b',
+                'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp|prometheus|grafana|istio|consul)\b',
+                'api': r'\b(rest(?:ful)?|api|graphql|webhook|http[s]?|grpc|soap|openapi|swagger)\b',
+                'security': r'\b(oauth|jwt|saml|ssl|tls|vpn|encryption|authentication|authorization|firewall)\b',
+                'data_science': r'\b(tensorflow|pytorch|keras|scikit-learn|pandas|numpy|matplotlib|tableau|power bi|machine learning|deep learning)\b'
             }
 
         except Exception as e:
@@ -44,13 +46,13 @@ class NLPMatcher:
         text = text.lower()
         found_skills = set()
 
-        # Extract all skills using combined patterns
-        all_patterns = '|'.join([pattern for pattern in self.tech_skills_patterns.values()])
-        matches = re.finditer(all_patterns, text, re.IGNORECASE)
-        for match in matches:
-            skill = match.group(0)
-            skill = self.normalize_skill_name(skill)
-            found_skills.add(skill)
+        # Extract all skills using patterns
+        for pattern in self.tech_skills_patterns.values():
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                skill = match.group(0)
+                skill = self.normalize_skill_name(skill)
+                found_skills.add(skill)
 
         # Additional common tech terms
         common_tech_terms = {
@@ -58,7 +60,11 @@ class NLPMatcher:
             'jwt', 'saml', 'http', 'https', 'webhooks', 'soa',
             'soap', 'grpc', 'openapi', 'swagger', 'postman',
             'iac', 'github actions', 'argocd', 'kubernetes',
-            'docker', 'aws', 'azure', 'gcp', 'testing', 'ci/cd'
+            'docker', 'aws', 'azure', 'gcp', 'testing', 'ci/cd',
+            'machine learning', 'deep learning', 'nlp', 'computer vision',
+            'data science', 'big data', 'cloud computing', 'devops',
+            'microservices', 'serverless', 'blockchain', 'web3',
+            'cybersecurity', 'networking', 'infrastructure'
         }
 
         # Extract multi-word terms
@@ -83,11 +89,6 @@ class NLPMatcher:
         if not candidate_skills or not required_skills:
             return 0, []
 
-        # Log input skills
-        st.write("\nMatching Skills:")
-        st.write("Candidate Skills:", ", ".join(candidate_skills))
-        st.write("Required Skills:", ", ".join(required_skills))
-
         matched_skills = []
         total_score = 0
 
@@ -102,7 +103,6 @@ class NLPMatcher:
             if normalized_req in normalized_candidate:
                 matched_skills.append(req_skill)
                 total_score += 1
-                st.write(f"✓ Found exact match for '{req_skill}'")
                 continue
 
             # Try fuzzy matching
@@ -115,10 +115,8 @@ class NLPMatcher:
             if best_match[1] > 0.5:  # Reduced threshold for fuzzy matching
                 matched_skills.append(best_match[0])
                 total_score += best_match[1]
-                st.write(f"✓ Found similar match: '{best_match[0]}' for '{req_skill}' (similarity: {best_match[1]:.2f})")
 
         avg_score = (total_score / len(required_skills)) * 100 if required_skills else 0
-        st.write(f"\nSkills matching score: {avg_score:.1f}%")
         return avg_score, matched_skills
 
     def normalize_skill_name(self, skill):
@@ -145,7 +143,11 @@ class NLPMatcher:
             'automated testing': 'testing',
             'test automation': 'testing',
             'unit testing': 'testing',
-            'integration testing': 'testing'
+            'integration testing': 'testing',
+            'machine learning': 'ml',
+            'deep learning': 'dl',
+            'artificial intelligence': 'ai',
+            'natural language processing': 'nlp'
         }
 
         skill = skill.lower().strip()
