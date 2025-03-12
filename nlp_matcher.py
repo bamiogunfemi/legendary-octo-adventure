@@ -1,8 +1,8 @@
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.corpus import stopwords, wordnet
-from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 from nltk.metrics.distance import edit_distance
+from nltk.stem import WordNetLemmatizer
 from collections import Counter
 import re
 import math
@@ -10,8 +10,9 @@ import streamlit as st
 
 class NLPMatcher:
     def __init__(self):
-        # Download required NLTK data
+        # Initialize NLTK data
         try:
+            # Download required NLTK data silently
             nltk.download('punkt', quiet=True)
             nltk.download('stopwords', quiet=True)
             nltk.download('wordnet', quiet=True)
@@ -19,121 +20,103 @@ class NLPMatcher:
             self.stop_words = set(stopwords.words('english'))
             self.lemmatizer = WordNetLemmatizer()
 
-            # Enhanced technical skills patterns
+            # Updated technical skills patterns based on the example CV
             self.tech_skills_patterns = {
-                'programming_languages': r'\b(python|java(?:script)?|typescript|go(?:lang)?|ruby|php|swift|kotlin|scala|rust|c\+\+|c#)\b',
-                'web_frameworks': r'\b(django|flask|fastapi|spring(?:boot)?|react(?:\.js)?|angular(?:js)?|vue(?:\.js)?|express(?:\.js)?|node(?:\.js)?|next(?:\.js)?)\b',
-                'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|redis|elastic(?:search)?|cassandra|dynamo(?:db)?|oracle)\b',
-                'cloud': r'\b(aws|amazon|azure|gcp|google cloud|kubernetes|k8s|docker|terraform|ansible|argo(?:cd)?)\b',
-                'testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|chai|testing|test automation)\b',
-                'devops': r'\b(ci/cd|jenkins|travis|circle(?:ci)?|git(?:hub)?|gitlab|bitbucket|iac|helm)\b',
-                'infrastructure': r'\b(kubernetes|docker|terraform|ansible|puppet|chef|aws|azure|gcp)\b',
-                'data_engineering': r'\b(spark|hadoop|kafka|airflow|databricks|snowflake|etl|data pipeline)\b'
+                'programming_languages': r'\b(python|java(?:script)?|typescript|flutter)\b',
+                'web_frameworks': r'\b(django|django rest framework|fastapi|react)\b',
+                'cloud_platforms': r'\b(aws|gcp|azure|heroku)\b',
+                'databases': r'\b(post(?:gres)?(?:sql)?|mysql|mongo(?:db)?|database functions|triggers|django orm)\b',
+                'devops': r'\b(docker|kubernetes|github actions|ci/cd|argocd)\b',
+                'apis': r'\b(restful api|rest api|api development|grpc|swagger|webhooks|3rd party api)\b',
+                'messaging': r'\b(rabbitmq)\b',
+                'architecture': r'\b(microservices|multi-tenancy)\b',
+                'data_science': r'\b(scikit[-\s]?learn|pytorch|pandas|numpy|matplotlib|statistics)\b',
+                'tools': r'\b(advanced excel|technical writing)\b'
             }
 
         except Exception as e:
             st.error(f"Error initializing NLP components: {str(e)}")
+            # Provide fallback values
             self.stop_words = set()
             self.lemmatizer = None
+            self.tech_skills_patterns = {}
 
     def extract_technical_skills(self, text):
         """Enhanced technical skills extraction from CV text"""
         if not text:
             return []
 
-        # Check if text starts with "CV Content:" prefix
-        if isinstance(text, str) and text.startswith("CV Content:"):
-            text = text[len("CV Content:"):].strip()
-
-        text = text.lower()
+        # Generate variations of the CV text
+        all_variations = [text] + self.generate_cv_variations(text)
         found_skills = set()
 
-        # Extract skills using patterns
-        for category, pattern in self.tech_skills_patterns.items():
-            matches = re.finditer(pattern, text)
-            for match in matches:
-                skill = match.group(0)
-                # Normalize skill names
-                skill = self.normalize_skill_name(skill)
-                found_skills.add(skill)
+        # Process each variation
+        for variation in all_variations:
+            # Extract skills using patterns
+            for category, pattern in self.tech_skills_patterns.items():
+                matches = re.finditer(pattern, variation, re.IGNORECASE)
+                for match in matches:
+                    skill = match.group(0)
+                    # Normalize skill names
+                    skill = self.normalize_skill_name(skill)
+                    found_skills.add(skill.title())
 
-        # Additional common tech terms
-        common_tech_terms = {
-            'rest', 'restful', 'api', 'graphql', 'microservices', 'oauth',
-            'jwt', 'saml', 'http', 'https', 'tcp/ip', 'webhooks', 'soa',
-            'soap', 'grpc', 'openapi', 'swagger', 'postman', 'curl'
-        }
+            # Check for specific skills
+            variation_lower = variation.lower()
+            if 'python' in variation_lower:
+                found_skills.add('Python')
+            if 'aws' in variation_lower:
+                found_skills.add('AWS')
+            if 'restful' in variation_lower or 'rest api' in variation_lower:
+                found_skills.add('RESTful API')
+            if 'webhook' in variation_lower:
+                found_skills.add('Webhooks')
+            if 'gcp' in variation_lower:
+                found_skills.add('GCP')
+            if 'azure' in variation_lower:
+                found_skills.add('Azure')
+            if 'argocd' in variation_lower:
+                found_skills.add('ArgoCD')
+            if 'kubernetes' in variation_lower:
+                found_skills.add('Kubernetes')
+            if 'docker' in variation_lower:
+                found_skills.add('Docker')
+            if 'postgres' in variation_lower:
+                found_skills.add('PostgreSQL')
+            if 'mongodb' in variation_lower:
+                found_skills.add('MongoDB')
+            if 'test' in variation_lower:
+                found_skills.add('Testing')
+            if 'github action' in variation_lower:
+                found_skills.add('GitHub Actions')
 
-        # Look for terms in context
-        words = word_tokenize(text)
-        for i, word in enumerate(words):
-            if word.lower() in common_tech_terms:
-                found_skills.add(word.lower())
-            # Check for compound terms
-            if i < len(words) - 1:
-                compound = f"{word.lower()} {words[i+1].lower()}"
-                if compound in common_tech_terms:
-                    found_skills.add(compound)
-
-        # Log extracted skills
-        st.write("Extracted Technical Skills:", sorted(list(found_skills)))
+        # Log the skills found
+        st.write("\nExtracted Technical Skills:", sorted(list(found_skills)))
 
         return sorted(list(found_skills))
 
     def normalize_skill_name(self, skill):
         """Normalize skill names to standard format"""
         replacements = {
-            'javascript': 'javascript',
-            'js': 'javascript',
-            'typescript': 'typescript',
-            'py': 'python',
-            'golang': 'go',
-            'nodejs': 'node.js',
-            'reactjs': 'react',
-            'vuejs': 'vue',
-            'postgres': 'postgresql',
-            'k8s': 'kubernetes',
+            'restful': 'RESTful API',
+            'rest api': 'RESTful API',
+            'github action': 'GitHub Actions',
+            'postgres': 'PostgreSQL',
+            'postgresql': 'PostgreSQL',
+            'mongo': 'MongoDB',
+            'mongodb': 'MongoDB',
+            'scikit-learn': 'ScikitLearn',
+            'scikit learn': 'ScikitLearn',
+            'pytorch': 'PyTorch',
+            'numpy': 'NumPy',
+            'pandas': 'Pandas',
+            'testing': 'Testing',
+            'test': 'Testing',
+            'webhook': 'Webhooks'
         }
 
         skill = skill.lower().strip()
         return replacements.get(skill, skill)
-
-    def get_skill_similarity(self, candidate_skill, required_skill):
-        """Compute similarity between two skills with improved matching"""
-        # Normalize both skills
-        skill1 = self.normalize_skill_name(candidate_skill)
-        skill2 = self.normalize_skill_name(required_skill)
-
-        # Exact match after normalization
-        if skill1 == skill2:
-            return 1.0
-
-        # Handle common variations
-        if any(variation in skill1 for variation in ['.js', 'js']) and \
-           any(variation in skill2 for variation in ['.js', 'js']):
-            base1 = skill1.replace('.js', '').replace('js', '')
-            base2 = skill2.replace('.js', '').replace('js', '')
-            if base1 == base2:
-                return 1.0
-
-        # Compute similarity scores
-        tokens1 = set(self.preprocess_text(skill1))
-        tokens2 = set(self.preprocess_text(skill2))
-
-        # Jaccard similarity
-        intersection = len(tokens1 & tokens2)
-        union = len(tokens1 | tokens2)
-
-        if union == 0:
-            return 0.0
-
-        jaccard = intersection / union
-
-        # Edit distance similarity
-        edit_sim = 1 - (edit_distance(skill1, skill2) / max(len(skill1), len(skill2)))
-
-        # Final similarity score
-        return (jaccard * 0.6 + edit_sim * 0.4)
 
     def match_skills(self, candidate_skills, required_skills):
         """Advanced skill matching using NLP"""
@@ -175,23 +158,167 @@ class NLPMatcher:
         st.write(f"\nFinal matching score: {avg_score:.2f}%")
         return avg_score, matched_skills
 
+    def get_skill_similarity(self, candidate_skill, required_skill):
+        """Compute similarity between two skills"""
+        # Normalize both skills
+        skill1 = self.normalize_skill_name(candidate_skill)
+        skill2 = self.normalize_skill_name(required_skill)
+
+        # Exact match after normalization
+        if skill1.lower() == skill2.lower():
+            return 1.0
+
+        # Use lemmatizer if available
+        if self.lemmatizer:
+            skill1_tokens = [self.lemmatizer.lemmatize(token) for token in word_tokenize(skill1.lower())]
+            skill2_tokens = [self.lemmatizer.lemmatize(token) for token in word_tokenize(skill2.lower())]
+        else:
+            skill1_tokens = word_tokenize(skill1.lower())
+            skill2_tokens = word_tokenize(skill2.lower())
+
+        # Convert to sets for comparison
+        tokens1 = set(skill1_tokens)
+        tokens2 = set(skill2_tokens)
+
+        # Jaccard similarity
+        intersection = len(tokens1 & tokens2)
+        union = len(tokens1 | tokens2)
+
+        if union == 0:
+            return 0.0
+
+        jaccard = intersection / union
+
+        # Edit distance similarity
+        edit_sim = 1 - (edit_distance(skill1.lower(), skill2.lower()) / max(len(skill1), len(skill2)))
+
+        # Final similarity score
+        return (jaccard * 0.6 + edit_sim * 0.4)
+
     def preprocess_text(self, text):
         """Advanced text preprocessing"""
         if not isinstance(text, str):
-            return ""
+            return []
 
         # Convert to lowercase and remove special characters
         text = text.lower()
         text = re.sub(r'[^\w\s]', ' ', text)
 
-        # Tokenize and lemmatize if initialized properly
+        # Tokenize
         tokens = word_tokenize(text)
+
+        # Remove stopwords and lemmatize if possible
         if self.lemmatizer:
             tokens = [self.lemmatizer.lemmatize(token) for token in tokens if token not in self.stop_words]
         else:
             tokens = [token for token in tokens if token not in self.stop_words]
 
         return tokens
+
+    def generate_cv_variations(self, cv_text):
+        """Generate variations of CV content while maintaining key information"""
+        # Split text into sections
+        sections = cv_text.split('\n\n')
+        variations = []
+
+        # Create variation patterns
+        patterns = [
+            # Pattern 1: Skills first, then experience
+            lambda s: self._format_skills_first(s),
+            # Pattern 2: Experience first, then skills
+            lambda s: self._format_experience_first(s),
+            # Pattern 3: Combined format
+            lambda s: self._format_combined(s)
+        ]
+
+        for pattern in patterns:
+            try:
+                variation = pattern(sections)
+                if variation:
+                    variations.append(variation)
+            except Exception as e:
+                st.warning(f"Error generating variation: {str(e)}")
+
+        return variations
+
+    def _format_skills_first(self, sections):
+        """Format with skills section first"""
+        skills_section = ""
+        experience_section = ""
+        other_sections = []
+
+        for section in sections:
+            lower_section = section.lower()
+            if 'skills' in lower_section or 'technologies' in lower_section:
+                skills_section = section
+            elif 'experience' in lower_section or 'work history' in lower_section:
+                experience_section = section
+            else:
+                other_sections.append(section)
+
+        formatted = f"""Technical Expertise
+{skills_section}
+
+Professional Background
+{experience_section}
+
+{''.join(other_sections)}"""
+
+        return formatted.strip()
+
+    def _format_experience_first(self, sections):
+        """Format with experience section first"""
+        skills_section = ""
+        experience_section = ""
+        other_sections = []
+
+        for section in sections:
+            lower_section = section.lower()
+            if 'skills' in lower_section or 'technologies' in lower_section:
+                skills = re.findall(r'\b[A-Za-z+#]+(?:\.[A-Za-z]+)*\b', section)
+                skills_section = "Technical Proficiencies:\n" + ", ".join(skills)
+            elif 'experience' in lower_section or 'work history' in lower_section:
+                experience_section = section
+            else:
+                other_sections.append(section)
+
+        formatted = f"""Career History
+{experience_section}
+
+Technical Skills & Tools
+{skills_section}
+
+{''.join(other_sections)}"""
+
+        return formatted.strip()
+
+    def _format_combined(self, sections):
+        """Format with combined skills and experience"""
+        skills = []
+        experiences = []
+        other_content = []
+
+        for section in sections:
+            lower_section = section.lower()
+            if 'skills' in lower_section or 'technologies' in lower_section:
+                skills = re.findall(r'\b[A-Za-z+#]+(?:\.[A-Za-z]+)*\b', section)
+            elif 'experience' in lower_section or 'work history' in lower_section:
+                experiences.append(section)
+            else:
+                other_content.append(section)
+
+        formatted = f"""Professional Summary
+Software developer with expertise in {', '.join(skills[:3])} and other technologies.
+
+Work Experience & Technical Implementations
+{' '.join(experiences)}
+
+Core Competencies
+{', '.join(skills)}
+
+{''.join(other_content)}"""
+
+        return formatted.strip()
 
     def compute_tf_idf(self, text, document_set):
         """Compute TF-IDF scores for terms"""

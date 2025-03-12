@@ -1,68 +1,86 @@
-import os
-import json
-from openai import OpenAI
+import nltk
+from nltk.tokenize import word_tokenize, sent_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import re
 import streamlit as st
+from nlp_matcher import NLPMatcher
+
+# Initialize NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', quiet=True)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords', quiet=True)
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet', quiet=True)
 
 class AIHelper:
     def __init__(self):
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            st.warning("⚠️ OpenAI API key not found. Set the OPENAI_API_KEY environment variable.")
-            st.info("To set up the OpenAI API key, go to the Secrets tool in Replit and add OPENAI_API_KEY.")
-        self.client = OpenAI(api_key=api_key)
+        self.nlp_matcher = NLPMatcher()
+        self.stop_words = set(stopwords.words('english'))
+        self.lemmatizer = WordNetLemmatizer()
 
     def analyze_cv_content(self, cv_text, job_requirements):
         """
-        Analyze CV content using OpenAI to extract skills and match with requirements.
+        Analyze CV content using NLTK to extract skills and match with requirements.
         """
         try:
             # Log the analysis start
-            st.write("\nStarting AI Analysis...")
+            st.write("\nStarting CV Analysis...")
 
-            prompt = f"""
-            You are an expert technical recruiter. Analyze this CV content and extract technical skills and experience.
+            # Extract all technical skills from CV
+            technical_skills = self.nlp_matcher.extract_technical_skills(cv_text)
 
-            Required Skills to Match: {', '.join(job_requirements.get('required_skills', []))}
-            Nice to Have Skills: {', '.join(job_requirements.get('nice_to_have_skills', []))}
+            # Get required and nice-to-have skills
+            required_skills = job_requirements.get('required_skills', [])
+            nice_to_have_skills = job_requirements.get('nice_to_have_skills', [])
 
-            CV Content:
-            {cv_text}
-
-            Analyze the CV content for technical skills and provide structured output in this JSON format:
-            {{
-                "technical_skills_found": ["list of all technical skills found"],
-                "matched_required_skills": ["list of required skills found in CV"],
-                "matched_nice_to_have": ["list of nice to have skills found in CV"],
-                "missing_critical_skills": ["list of required skills NOT found in CV"],
-                "skill_match_score": float (0-100),
-                "analysis_notes": ["list of key observations about the candidate"]
-            }}
-
-            Guidelines:
-            1. Be thorough in identifying both explicit and implicit skills
-            2. Consider variations of skill names (e.g., "React.js" vs "React")
-            3. Look for experience level indicators
-            4. Calculate skill_match_score based on required skills coverage
-            """
-
-            # Call OpenAI API with JSON response format
-            response = self.client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                messages=[{
-                    "role": "system",
-                    "content": "You are an expert technical recruiter specialized in evaluating CVs."
-                }, {
-                    "role": "user",
-                    "content": prompt
-                }],
-                response_format={"type": "json_object"}
+            # Match skills using NLP matcher
+            skill_match_score, matched_skills = self.nlp_matcher.match_skills(
+                technical_skills,
+                required_skills
             )
 
-            # Parse the JSON response
-            result = json.loads(response.choices[0].message.content)
+            # Get matched required skills
+            matched_required = [match['matched'] for match in matched_skills]
+
+            # Match nice-to-have skills
+            _, nice_to_have_matches = self.nlp_matcher.match_skills(
+                technical_skills,
+                nice_to_have_skills
+            )
+            matched_nice_to_have = [match['matched'] for match in nice_to_have_matches]
+
+            # Find missing critical skills
+            missing_critical = list(set(required_skills) - set(matched_required))
+
+            # Generate analysis notes
+            analysis_notes = []
+            if matched_required:
+                analysis_notes.append(f"Matched {len(matched_required)} out of {len(required_skills)} required skills")
+            if matched_nice_to_have:
+                analysis_notes.append(f"Has {len(matched_nice_to_have)} nice-to-have skills")
+            if missing_critical:
+                analysis_notes.append(f"Missing {len(missing_critical)} critical skills")
+
+            # Prepare result
+            result = {
+                "technical_skills_found": technical_skills,
+                "matched_required_skills": matched_required,
+                "matched_nice_to_have": matched_nice_to_have,
+                "missing_critical_skills": missing_critical,
+                "skill_match_score": skill_match_score,
+                "analysis_notes": analysis_notes
+            }
 
             # Log the analysis results
-            st.write("\nAI Analysis Results:")
+            st.write("\nAnalysis Results:")
             st.write("Technical Skills Found:", result['technical_skills_found'])
             st.write("Skills Match Score:", result['skill_match_score'])
             st.write("Analysis Notes:", result['analysis_notes'])
@@ -70,7 +88,7 @@ class AIHelper:
             return result
 
         except Exception as e:
-            st.error(f"Error in AI analysis: {str(e)}")
+            st.error(f"Error in CV analysis: {str(e)}")
             return {
                 "technical_skills_found": [],
                 "matched_required_skills": [],
