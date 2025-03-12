@@ -85,7 +85,7 @@ def main():
     st.sidebar.header("Job Description")
     role = st.sidebar.text_input(
         "Role Title",
-        value="Backend Integration Engineer",
+        value="",
         help="Enter the role title"
     )
 
@@ -107,7 +107,7 @@ Nice to have
 
     jd_text = st.sidebar.text_area(
         "Enter Job Description",
-        value=default_jd,
+        value="",
         height=300,
         help="Enter the complete job description including required skills and experience"
     )
@@ -117,7 +117,7 @@ Nice to have
         "Required Years of Experience",
         min_value=0,
         max_value=20,
-        value=8,
+        value=0,
         help="Set the minimum years of experience required"
     )
 
@@ -125,7 +125,7 @@ Nice to have
     st.sidebar.header("CV Source")
     sheet_id = st.sidebar.text_input(
         "Google Sheet ID",
-        value="1IkWvsHfGW1iylm58LpYeWhsUDf30Mld5pF7WkpWlWxM",
+        value="",
         help="Enter the ID from the Google Sheet URL"
     )
     sheet_range = st.sidebar.text_input(
