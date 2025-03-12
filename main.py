@@ -129,7 +129,6 @@ Nice to have
                         'cv_link': cv_link,
                         'first_line': first_line,
                         'years_experience': years_exp,
-                        'skills': extracted_skills if 'extracted_skills' in locals() else [],
                         'cv_text': cv_content if isinstance(cv_content, str) and not cv_content.startswith("Error") else ''
                     }
 
@@ -144,9 +143,9 @@ Nice to have
                         'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
                         'technical_skills': ", ".join(result.get('technical_skills', [])),  # All technical skills
-                        'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Matched required skills
-                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),  # Matched nice-to-have skills
-                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])),  # Missing required skills
+                        'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Required skills found
+                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),  # Nice-to-have skills
+                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])),  # Missing skills
                         'overall_score': result['overall_score'],
                         'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else '',
                         'notes': result.get('evaluation_notes', '')
