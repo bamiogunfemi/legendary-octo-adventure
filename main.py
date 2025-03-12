@@ -4,6 +4,7 @@ from google_sheet_client import GoogleSheetClient
 from scoring_engine import ScoringEngine
 from utils import parse_job_description, prepare_export_data, calculate_years_experience
 from datetime import datetime
+import nlp_matcher # Added import for nlp_matcher
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -116,9 +117,10 @@ Nice to have
                         start_date_str=row.get('Experience Start Date', '')
                     )
 
-                    # Debug logging
-                    st.write("Debug: CV Content Type:", type(cv_content))
-                    st.write("Debug: CV Content Length:", len(cv_content) if isinstance(cv_content, str) else "N/A")
+                    # Extract technical skills and display them
+                    if isinstance(cv_content, str) and cv_content:
+                        extracted_skills = nlp_matcher.extract_technical_skills(cv_content)
+                        st.write("\nAll Technical Skills Found:", ", ".join(extracted_skills))
 
                     # Create CV dictionary
                     cv_dict = {
@@ -127,12 +129,9 @@ Nice to have
                         'cv_link': cv_link,
                         'first_line': first_line,
                         'years_experience': years_exp,
-                        'skills': [],
+                        'skills': extracted_skills if 'extracted_skills' in locals() else [],
                         'cv_text': cv_content if isinstance(cv_content, str) and not cv_content.startswith("Error") else ''
                     }
-
-                    # Debug logging
-                    st.write("Debug: CV Text in Dictionary:", bool(cv_dict['cv_text']))
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
@@ -144,22 +143,16 @@ Nice to have
                         'cv_link': cv_dict['cv_link'],
                         'first_line': cv_dict['first_line'],
                         'years_experience': years_exp,
-                        'required_skills': result.get('matched_required_skills', []),  # Get as list
-                        'nice_to_have_skills': result.get('matched_nice_to_have', []),  # Get as list
-                        'missing_skills': result.get('missing_critical_skills', []),
+                        'all_skills': ", ".join(cv_dict['skills']),  # All technical skills
+                        'required_skills': ", ".join(result.get('matched_required_skills', [])),  # Required skills found
+                        'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])),
+                        'missing_skills': ", ".join(result.get('missing_critical_skills', [])),
                         'overall_score': result['overall_score'],
                         'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else '',
                         'notes': result.get('evaluation_notes', '')
                     }
 
-                    # Add reasons for not suitable candidates
-                    reasons = []
-                    if isinstance(cv_content, str) and "Error" in cv_content:
-                        reasons.append(f"CV Processing: {cv_content}")
-                    if result['reasons']:
-                        reasons.extend(result['reasons'])
-
-                    evaluation['reasons_not_suitable'] = '\n'.join(reasons) if reasons else ''
+                    # Add to results
                     results.append(evaluation)
 
                 # Hide progress bar
@@ -168,10 +161,6 @@ Nice to have
                 # Sort results by overall score
                 results_df = pd.DataFrame(results)
                 results_df = results_df.sort_values('overall_score', ascending=False)
-
-                # Highlight top 5 candidates
-                results_df['is_top_5'] = False
-                results_df.loc[results_df.index[:5], 'is_top_5'] = True
 
                 # Display results
                 st.header("Evaluation Results")
@@ -190,37 +179,32 @@ Nice to have
                     error_count = len(results_df[results_df['document_errors'].notna() & (results_df['document_errors'] != '')])
                     st.metric("CVs with Errors", error_count)
 
-                # Style the dataframe
-                def highlight_top_5(row):
-                    return ['background-color: #90EE90' if row['is_top_5'] else '' for _ in row]
-
-                styled_df = results_df.style.apply(highlight_top_5, axis=1)
-
                 # Detailed results table
                 st.write("### Detailed Results")
                 st.dataframe(
-                    styled_df,
+                    results_df,
                     column_config={
                         "name": "Name",
                         "email": "Email",
                         "cv_link": st.column_config.LinkColumn("CV Link"),
-                        "first_line": st.column_config.TextColumn(
-                            "First Line of CV",
-                            help="First line extracted from the CV document"
-                        ),
+                        "first_line": "First Line of CV",
                         "years_experience": st.column_config.NumberColumn(
                             "Years of Experience",
                             format="%.1f"
                         ),
-                        "required_skills": st.column_config.ListColumn(
+                        "all_skills": st.column_config.TextColumn(
+                            "All Technical Skills",
+                            help="All technical skills found in the CV"
+                        ),
+                        "required_skills": st.column_config.TextColumn(
                             "Required Skills Found",
                             help="Skills from the job requirements found in the CV"
                         ),
-                        "nice_to_have_skills": st.column_config.ListColumn(
+                        "nice_to_have_skills": st.column_config.TextColumn(
                             "Nice-to-Have Skills",
                             help="Additional desired skills found in the CV"
                         ),
-                        "missing_skills": st.column_config.ListColumn(
+                        "missing_skills": st.column_config.TextColumn(
                             "Missing Critical Skills",
                             help="Required skills not found in the CV"
                         ),
@@ -229,9 +213,7 @@ Nice to have
                             format="%.1f"
                         ),
                         "document_errors": "CV Processing Issues",
-                        "notes": "Evaluation Notes",
-                        "reasons_not_suitable": st.column_config.TextColumn("Additional Reasons"),
-                        "is_top_5": None  # Hide this column
+                        "notes": "Evaluation Notes"
                     }
                 )
 
