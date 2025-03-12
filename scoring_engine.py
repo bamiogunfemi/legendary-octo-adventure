@@ -25,17 +25,8 @@ class ScoringEngine:
                 st.warning("No CV text content available for analysis")
                 return self._create_empty_result("No CV content available")
 
-            # Log job requirements for debugging
-            st.write("\nJob Requirements:")
-            st.write("Role:", job_requirements.get('role', ''))
-            st.write("Required Skills:", job_requirements.get('required_skills', []))
-            st.write("Nice to Have Skills:", job_requirements.get('nice_to_have_skills', []))
-
             # Extract technical skills from CV content
             extracted_skills = self.nlp_matcher.extract_technical_skills(cv_text)
-
-            # Log extracted skills
-            st.write("\nExtracted Skills:", extracted_skills)
 
             # Combine with any provided skills
             all_skills = list(set(
@@ -46,9 +37,6 @@ class ScoringEngine:
             # Update CV data with extracted skills
             cv_data['skills'] = all_skills
 
-            # Log combined skills
-            st.write("\nAll Candidate Skills:", all_skills)
-
             # Skills evaluation with detailed matching
             skills_score, skills_result = self.nlp_matcher.match_skills(
                 all_skills,
@@ -57,7 +45,7 @@ class ScoringEngine:
 
             # Process skill matching results
             if isinstance(skills_result, list):
-                matched_required = [match['matched'] for match in skills_result]
+                matched_required = [match for match in skills_result]
 
                 # Find missing critical skills
                 required_skills = set(job_requirements.get('required_skills', []))
@@ -69,29 +57,12 @@ class ScoringEngine:
 
                 # Add to notes
                 if matched_required:
-                    notes.append(f"Matches {len(matched_required)} required skills")
-                if matched_nice_to_have:
-                    notes.append(f"Has {len(matched_nice_to_have)} nice-to-have skills")
+                    notes.append(f"Required skills found: {', '.join(matched_required)}")
                 if missing_critical:
-                    notes.append(f"Missing {len(missing_critical)} critical skills")
-            else:
-                matched_required = []
-                matched_nice_to_have = []
-                missing_critical = []
-
-            # Parse experience from CV text
-            exp_score = 100 if cv_data.get('years_experience', 0) >= job_requirements.get('required_years', 0) else 50
+                    notes.append(f"Missing skills: {', '.join(missing_critical)}")
 
             # Calculate overall score
-            overall_score = (skills_score * 0.7 + exp_score * 0.3)  # Weight skills more heavily
-
-            # Log final evaluation details
-            st.write("\nSkills Matching Results:")
-            st.write("Matched Required Skills:", matched_required)
-            st.write("Nice-to-have Skills:", matched_nice_to_have)
-            st.write("Missing Critical Skills:", missing_critical)
-            st.write(f"Skills Score: {skills_score:.2f}%")
-            st.write(f"Overall Score: {overall_score:.2f}%")
+            overall_score = (skills_score * 0.7)  # Weight skills more heavily
 
             # Compile results
             result = {

@@ -209,21 +209,23 @@ def parse_document_for_experience(cv_url):
                 years_exp = (datetime.now() - earliest_date).days / 365.25
                 st.write(f"Calculated years of experience: {round(years_exp, 1)} years")
 
-                # Extract technical skills from the text
-                st.write("\nTechnical Skills Found:")
-                technical_patterns = {
-                    'Programming': r'\b(?:python|java(?:script)?|golang|typescript)\b',
-                    'Cloud & DevOps': r'\b(?:aws|azure|gcp|kubernetes|docker|github actions|argocd)\b',
-                    'Databases': r'\b(?:postgres(?:ql)?|mongo(?:db)?)\b',
-                    'APIs': r'\b(?:rest(?:ful)?|api|webhook)\b',
-                    'Testing': r'\b(?:test(?:ing)?|automation)\b'
-                }
+                # Extract technical skills without categorization
+                technical_patterns = [
+                    r'\b(?:python|java(?:script)?|golang|typescript)\b',
+                    r'\b(?:aws|azure|gcp|kubernetes|docker|github actions|argocd)\b',
+                    r'\b(?:postgres(?:ql)?|mongo(?:db)?)\b',
+                    r'\b(?:rest(?:ful)?|api|webhook)\b',
+                    r'\b(?:test(?:ing)?|automation)\b'
+                ]
 
-                for category, pattern in technical_patterns.items():
+                all_skills = set()
+                for pattern in technical_patterns:
                     matches = re.finditer(pattern, text.lower())
-                    skills = set(match.group(0) for match in matches)
-                    if skills:
-                        st.write(f"- {category}: {', '.join(sorted(skills))}")
+                    skills = {match.group(0) for match in matches}
+                    all_skills.update(skills)
+
+                if all_skills:
+                    st.write("Technical Skills Found:", ", ".join(sorted(all_skills)))
 
                 return earliest_date, first_line, text
             else:
