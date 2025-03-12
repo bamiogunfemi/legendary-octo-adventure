@@ -161,56 +161,82 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
                 if not cv_content:
                     return 0, None, "No CV content available"
 
-                # Define experience-related keywords
+                # Define exclusion patterns for non-professional positions
+                exclusion_patterns = [
+                    r'freelance', r'freelancing', r'education',
+                    r'university', r'college', r'school',
+                    r'certificate', r'certification', r'training',
+                    r'intern', r'internship', r'student',
+                    r'hons\.?', r'b\.?sc\.?', r'bachelor',
+                    r'm\.?sc\.?', r'master', r'ph\.?d\.?'
+                ]
+                exclusion_pattern = '|'.join(exclusion_patterns)
+
+                # Define experience section keywords
                 exp_keywords = [
-                    'experience',
-                    'work history',
-                    'employment',
-                    'professional background',
-                    'career',
-                    'worked',
-                    'working'
+                    'experience', 'work history', 'employment',
+                    'professional background', 'career',
+                    'work experience', 'professional experience'
                 ]
 
                 # Look for experience sections and dates
                 cv_text = cv_content.lower()
                 earliest_date = None
+                current_section = ""
+                in_education_section = False
 
-                # First try to find dates in lines that contain experience keywords
-                lines = cv_text.split('\n')
-                for line in lines:
+                for line in cv_text.split('\n'):
+                    line = line.strip()
+
+                    # Skip empty lines
+                    if not line:
+                        continue
+
+                    # Check if we're entering an education section
+                    if re.search(r'education|qualifications|academic|degree|university|college', line.lower()):
+                        in_education_section = True
+                        continue
+
+                    # Check if we're in an experience section
                     if any(keyword in line for keyword in exp_keywords):
-                        # Look for year patterns
-                        year_matches = re.findall(r'(?:19|20)\d{2}', line)
-                        for year in year_matches:
-                            date = dateparser.parse(year)
-                            if date:
-                                if not earliest_date or date < earliest_date:
-                                    earliest_date = date
+                        current_section = "experience"
+                        in_education_section = False
+                        continue
 
-                # If no date found in experience sections, try all dates
-                if not earliest_date:
-                    all_dates = []
+                    # Skip if not in experience section or if in education section
+                    if current_section != "experience" or in_education_section:
+                        continue
+
+                    # Skip non-professional positions
+                    if re.search(exclusion_pattern, line.lower()):
+                        continue
+
+                    # Extract dates using various patterns
                     date_patterns = [
                         r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[,\s]+\d{4}',
                         r'\d{1,2}/\d{4}',
                         r'\d{1,2}-\d{4}',
-                        r'(?:19|20)\d{2}'
+                        r'(?:19|20)\d{2}'  # Year pattern limited to reasonable range
                     ]
 
                     for pattern in date_patterns:
-                        matches = re.finditer(pattern, cv_text)
+                        matches = re.finditer(pattern, line)
                         for match in matches:
                             date_str = match.group(0)
-                            date = dateparser.parse(date_str)
-                            if date:
-                                all_dates.append(date)
-
-                    if all_dates:
-                        earliest_date = min(all_dates)
+                            parsed_date = dateparser.parse(date_str)
+                            if parsed_date:
+                                # Additional check to ensure we're not in an academic context
+                                if not any(academic_term in line.lower() for academic_term in [
+                                    'graduated', 'degree', 'diploma', 'thesis', 'dissertation',
+                                    'academic', 'studied', 'completed', 'coursework'
+                                ]):
+                                    if not earliest_date or parsed_date < earliest_date:
+                                        earliest_date = parsed_date
 
                 if earliest_date:
-                    years_exp = (datetime.now() - earliest_date).days / 365.25
+                    # Calculate years from earliest date to 2025
+                    target_date = datetime(2025, 3, 12)  # Current date (2025)
+                    years_exp = (target_date - earliest_date).days / 365.25
                     return round(years_exp, 1), first_line, cv_content
 
             except Exception as e:
@@ -220,12 +246,13 @@ def calculate_years_experience(cv_url=None, start_date_str=None):
         if start_date_str and not pd.isna(start_date_str):
             try:
                 start_date = pd.to_datetime(start_date_str)
-                years_exp = (datetime.now() - start_date).days / 365.25
+                target_date = datetime(2025, 3, 12)  # Current date (2025)
+                years_exp = (target_date - start_date).days / 365.25
                 return round(years_exp, 1), None, None
             except Exception as e:
                 return 0, None, f"Invalid date format: {str(e)}"
 
-        return 0, None, "No experience date found"
+        return 0, None, "No valid professional experience dates found"
     except Exception as e:
         return 0, None, f"Error calculating experience: {str(e)}"
 
