@@ -70,11 +70,7 @@ def suggest_positions(technical_skills):
         positions.add("Serverless Developer")
         positions.add("Cloud Developer")
 
-    # If no specific positions found, suggest entry-level positions
-    if not positions:
-        return ["Entry Level Developer", "Junior Software Engineer"]
-
-    return sorted(list(positions))
+    return sorted(list(positions)) if positions else ["Entry Level Developer"]
 
 def main():
     st.set_page_config(page_title="CV Evaluator", layout="wide")
@@ -93,7 +89,7 @@ def main():
         help="Enter the role title"
     )
 
-    # Default job description from your text
+    # Default job description
     default_jd = """About You
     • python
     • RESTful API
@@ -144,11 +140,12 @@ Nice to have
             return
 
         try:
-            with st.spinner("Fetching CV data..."):
-                # Parse job requirements
-                job_requirements = parse_job_description(jd_text, years_exp)
-                job_requirements['role'] = role
+            # Parse job requirements
+            job_requirements = parse_job_description(jd_text, years_exp)
+            job_requirements['role'] = role
 
+            # Create a placeholder for the loading spinner
+            with st.spinner("Evaluating CVs..."):
                 # Fetch CV data
                 cv_data = google_client.get_sheet_data(sheet_id, sheet_range)
 
@@ -172,60 +169,45 @@ Nice to have
                     cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
                     cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
 
-                    # Create an expander for each CV to contain the details
-                    with st.expander(f"Processing CV {index + 1}: {cv_name}", expanded=True):
-                        st.write(f"**CV Link:** {cv_link}")
-
-                        # Log additional CV information if available
-                        if 'PHONE' in row:
-                            st.write(f"**Phone:** {row.get('PHONE', '')}")
-                        if 'EMAIL' in row:
-                            st.write(f"**Email:** {row.get('EMAIL', '')}")
-
                     # Calculate years of experience and get first line
                     years_exp, first_line, cv_content = calculate_years_experience(
                         cv_url=cv_link,
                         start_date_str=row.get('Experience Start Date', '')
                     )
 
-                    # Extract technical skills and display them
+                    # Extract technical skills
+                    extracted_skills = []
                     if isinstance(cv_content, str) and cv_content:
                         extracted_skills = nlp_matcher.extract_technical_skills(cv_content)
-                        st.write("\nAll Technical Skills Found:", ", ".join(extracted_skills))
 
                     # Create CV dictionary
                     cv_dict = {
                         'name': cv_name,
                         'email': str(row.get('EMAIL', '')).strip(),
                         'cv_link': cv_link,
-                        'first_line': first_line,
+                        'first_line': first_line or "None",
                         'years_experience': years_exp,
                         'cv_text': cv_content if isinstance(cv_content, str) else str(cv_content)
                     }
-
-                    # Debug logging for CV content
-                    st.write("\nDebug - CV Content Type:", type(cv_content))
-                    st.write("Debug - CV Text in Dictionary:", bool(cv_dict['cv_text']))
-                    st.write("Debug - CV Text Length:", len(cv_dict['cv_text']) if cv_dict['cv_text'] else 0)
 
                     # Evaluate CV
                     result = scoring_engine.evaluate_cv(cv_dict, job_requirements)
 
                     # Compile results
                     evaluation = {
-                        'name': cv_dict['name'],
-                        'email': cv_dict['email'],
-                        'cv_link': cv_dict['cv_link'],
-                        'first_line': cv_dict['first_line'],
+                        'name': cv_dict['name'] or "None",
+                        'email': cv_dict['email'] or "None",
+                        'cv_link': cv_dict['cv_link'] or "None",
+                        'first_line': cv_dict['first_line'] or "None",
                         'years_experience': years_exp,
                         'technical_skills': ", ".join(result.get('technical_skills', [])) or "None",
                         'required_skills': ", ".join(result.get('matched_required_skills', [])) or "None",
                         'nice_to_have_skills': ", ".join(result.get('matched_nice_to_have', [])) or "None",
                         'missing_skills': ", ".join(result.get('missing_critical_skills', [])) or "None",
                         'overall_score': result['overall_score'],
-                        'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else '',
-                        'notes': result.get('evaluation_notes', ''),
-                        'suggested_positions': ", ".join(suggest_positions(result.get('technical_skills', [])))
+                        'document_errors': cv_content if cv_content and isinstance(cv_content, str) and "Error" in cv_content else "None",
+                        'notes': result.get('evaluation_notes', '') or "None",
+                        'suggested_positions': ", ".join(suggest_positions(result.get('technical_skills', []))) or "None"
                     }
 
                     # Add to results
@@ -252,7 +234,7 @@ Nice to have
                     avg_score = results_df['overall_score'].mean()
                     st.metric("Average Score", f"{avg_score:.1f}")
                 with col4:
-                    error_count = len(results_df[results_df['document_errors'].notna() & (results_df['document_errors'] != '')])
+                    error_count = len(results_df[results_df['document_errors'].notna() & (results_df['document_errors'] != 'None')])
                     st.metric("CVs with Errors", error_count)
 
                 # Detailed results table
@@ -269,7 +251,7 @@ Nice to have
                             format="%.1f"
                         ),
                         "technical_skills": st.column_config.TextColumn(
-                            "All Technical Skills",
+                            "Technical Skills Found",
                             help="All technical skills found in the CV"
                         ),
                         "required_skills": st.column_config.TextColumn(
