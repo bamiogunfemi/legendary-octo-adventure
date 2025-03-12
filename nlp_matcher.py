@@ -77,52 +77,45 @@ class NLPMatcher:
         return sorted(list(normalized_skills))
 
     def match_skills(self, candidate_skills, required_skills):
-        """Match candidate skills against required skills with improved context awareness"""
+        """Match candidate skills against required skills with clear scoring"""
         if not candidate_skills or not required_skills:
             return 0, []
 
         matched_skills = []
-        total_score = 0
+        matched_count = 0
+        total_required = len(required_skills)
 
         for req_skill in required_skills:
             req_lower = req_skill.lower().strip()
 
-            # Direct match
+            # Direct match (100% match)
             if req_lower in [s.lower() for s in candidate_skills]:
                 matched_skills.append(req_skill)
-                total_score += 1
+                matched_count += 1
                 continue
 
-            # Check variations and related skills
-            matched = False
-            for cand_skill in candidate_skills:
-                cand_lower = cand_skill.lower()
-
-                # Check if the skills are variations of each other
-                if req_lower in self.skill_variations:
-                    variations = self.skill_variations[req_lower]
+            # Variation match (100% match)
+            if req_lower in self.skill_variations:
+                variations = self.skill_variations[req_lower]
+                for cand_skill in candidate_skills:
+                    cand_lower = cand_skill.lower()
                     if cand_lower in variations or any(var in cand_lower for var in variations):
                         matched_skills.append(req_skill)
-                        total_score += 1
-                        matched = True
+                        matched_count += 1
                         break
 
-                # Check if candidate skill contains required skill
-                if req_lower in cand_lower or any(var in cand_lower for var in self.skill_variations.get(req_lower, [])):
-                    matched_skills.append(req_skill)
-                    total_score += 0.8
-                    matched = True
-                    break
+            # Partial match (80% match)
+            if req_skill not in matched_skills:
+                for cand_skill in candidate_skills:
+                    cand_lower = cand_skill.lower()
+                    if req_lower in cand_lower or any(var in cand_lower for var in self.skill_variations.get(req_lower, [])):
+                        matched_skills.append(req_skill)
+                        matched_count += 0.8
+                        break
 
-            if not matched:
-                # Try fuzzy matching with context
-                best_match = self.find_best_match(req_skill, candidate_skills)
-                if best_match[1] >= 0.7:  # Higher threshold for fuzzy matches
-                    matched_skills.append(req_skill)
-                    total_score += best_match[1]
-
-        avg_score = (total_score / len(required_skills)) * 100 if required_skills else 0
-        return avg_score, list(set(matched_skills))
+        # Calculate percentage score
+        score = (matched_count / total_required) * 100 if total_required > 0 else 0
+        return score, list(set(matched_skills))
 
     def normalize_skill_name(self, skill):
         """Normalize skill names to standard format"""

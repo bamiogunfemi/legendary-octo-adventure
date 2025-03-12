@@ -22,14 +22,14 @@ class ScoringEngine:
             required_skills = job_requirements.get('required_skills', [])
             nice_to_have_skills = job_requirements.get('nice_to_have_skills', [])
 
-            # Match required skills
+            # Match required skills (70% of total score)
             skills_score, matched_required = self.nlp_matcher.match_skills(
                 technical_skills,
                 required_skills
             )
 
-            # Match nice-to-have skills
-            _, matched_nice_to_have = self.nlp_matcher.match_skills(
+            # Match nice-to-have skills (30% of total score)
+            nice_to_have_score, matched_nice_to_have = self.nlp_matcher.match_skills(
                 technical_skills,
                 nice_to_have_skills
             )
@@ -40,8 +40,24 @@ class ScoringEngine:
             # Find missing nice-to-have skills
             missing_nice_to_have = list(set(nice_to_have_skills) - set(matched_nice_to_have))
 
-            # Calculate overall score based on required skills match
-            overall_score = skills_score * 0.7  # Weight skills score
+            # Calculate weighted scores
+            required_weight = 0.7
+            nice_to_have_weight = 0.3
+
+            # Calculate overall score
+            if required_skills:
+                required_score = (len(matched_required) / len(required_skills)) * 100
+            else:
+                required_score = 0
+
+            if nice_to_have_skills:
+                nice_score = (len(matched_nice_to_have) / len(nice_to_have_skills)) * 100
+            else:
+                nice_score = 0
+
+            # Final weighted score
+            overall_score = (required_score * required_weight + 
+                           nice_score * nice_to_have_weight)
 
             # Compile results
             result = {
@@ -51,7 +67,7 @@ class ScoringEngine:
                 'matched_nice_to_have': matched_nice_to_have,
                 'missing_critical_skills': missing_required,
                 'missing_nice_to_have': missing_nice_to_have,
-                'evaluation_notes': ''
+                'evaluation_notes': f"Required Skills Score: {required_score:.1f}%, Nice-to-have Score: {nice_score:.1f}%"
             }
 
             return result
