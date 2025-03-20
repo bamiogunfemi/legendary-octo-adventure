@@ -2,10 +2,17 @@ import pandas as pd
 import streamlit as st
 from nlp_matcher import NLPMatcher
 from datetime import datetime
+from deepseek_evaluator import DeepseekEvaluator
 
 class ScoringEngine:
     def __init__(self):
         self.nlp_matcher = NLPMatcher()
+        try:
+            self.deepseek_evaluator = DeepseekEvaluator()
+            self.use_ai = True
+        except ValueError:
+            st.warning("Deepseek API key not found. Falling back to basic scoring.")
+            self.use_ai = False
 
     def evaluate_cv(self, cv_data, job_requirements):
         """Main evaluation function with detailed scoring breakdown"""
@@ -35,6 +42,14 @@ class ScoringEngine:
             # Calculate overall score (average of skills and experience)
             overall_score = (skills_score + experience_score) / 2
 
+            # Get Deepseek AI analysis if available
+            ai_analysis = {}
+            if self.use_ai:
+                try:
+                    ai_analysis = self.deepseek_evaluator.analyze_cv(cv_text, job_requirements)
+                except Exception as e:
+                    st.warning(f"AI analysis failed: {str(e)}")
+
             # Find matched and missing skills
             required_skills = job_requirements.get('required_skills', [])
             nice_to_have_skills = job_requirements.get('nice_to_have_skills', [])
@@ -54,8 +69,14 @@ class ScoringEngine:
                 f"Experience Match Score: {experience_score:.1f}/100\n"
                 f"- Years of Experience: {experience_breakdown['years']}/50\n"
                 f"- Industry Alignment: {experience_breakdown['industry']}/30\n"
-                f"- Role Responsibilities: {experience_breakdown['role']}/20"
+                f"- Role Responsibilities: {experience_breakdown['role']}/20\n\n"
             )
+
+            if ai_analysis:
+                evaluation_notes += "\nAI Analysis:\n"
+                evaluation_notes += f"Skills Analysis:\n{ai_analysis.get('skills_analysis', '')}\n"
+                evaluation_notes += f"Experience Analysis:\n{ai_analysis.get('experience_analysis', '')}\n"
+                evaluation_notes += f"Overall Recommendation:\n{ai_analysis.get('overall_recommendation', '')}"
 
             # Compile results
             result = {
@@ -67,7 +88,8 @@ class ScoringEngine:
                 'missing_nice_to_have': missing_nice_to_have,
                 'evaluation_notes': evaluation_notes,
                 'skills_score': skills_score,
-                'experience_score': experience_score
+                'experience_score': experience_score,
+                'ai_analysis': ai_analysis
             }
 
             return result
@@ -174,5 +196,6 @@ class ScoringEngine:
             'missing_nice_to_have': [],
             'evaluation_notes': error_message,
             'skills_score': 0,
-            'experience_score': 0
+            'experience_score': 0,
+            'ai_analysis': {}
         }

@@ -287,8 +287,8 @@ Nice to have
                             help="Potential roles based on technical skills"
                         ),
                         "evaluation_notes": st.column_config.TextColumn(
-                            "Score Breakdown",
-                            help="Detailed breakdown of scoring components"
+                            "Detailed Analysis",
+                            help="Comprehensive evaluation including both algorithmic scoring and AI analysis"
                         )
                     }
                 )
