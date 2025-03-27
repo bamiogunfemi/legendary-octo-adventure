@@ -115,7 +115,21 @@ def main():
     sheet_range = st.sidebar.text_input(
         "Sheet Range",
         value="A1:Z1000",
-        help="Enter the range of cells to process"
+        help="Enter the range of cells to process (e.g., 'Sheet1!A1:Z1000')"
+    )
+    
+    # Output sheet settings
+    st.sidebar.header("Results Output")
+    save_to_sheet = st.sidebar.checkbox(
+        "Save Results to Google Sheet", 
+        value=False,
+        help="Enable to save evaluation results to a sheet in the same spreadsheet"
+    )
+    
+    output_sheet = st.sidebar.text_input(
+        "Output Sheet Name",
+        value="Evaluation_Results",
+        help="Name of the sheet where results will be saved (will be created if it doesn't exist)"
     )
 
     if st.sidebar.button("Evaluate CVs"):
@@ -149,19 +163,104 @@ def main():
                     progress_bar.progress(progress)
                     progress_text.text(f"Processing CV {index + 1} of {total_cvs}")
 
-                    cv_name = f"{row.get('FIRST NAME', '')} {row.get('LAST NAME', '')}"
-                    cv_link = str(row.get('UPLOAD YOUR CV HERE', '')).strip()
-
+                    # Try different possible column names for first and last name
+                    first_name_cols = ['FIRST NAME', 'First Name', 'first name', 'First_Name', 'first_name', 'FirstName']
+                    last_name_cols = ['LAST NAME', 'Last Name', 'last name', 'Last_Name', 'last_name', 'LastName']
+                    
+                    # Get first name using various possible column names
+                    first_name = ''
+                    for col in first_name_cols:
+                        if col in row:
+                            first_name = row.get(col, '')
+                            break
+                    
+                    # Get last name using various possible column names
+                    last_name = ''
+                    for col in last_name_cols:
+                        if col in row:
+                            last_name = row.get(col, '')
+                            break
+                    
+                    # Combine to create full name
+                    cv_name = f"{first_name} {last_name}".strip()
+                    if not cv_name:
+                        # If no name columns found, check for a full name column
+                        name_cols = ['NAME', 'Name', 'name', 'Full Name', 'full name', 'FullName']
+                        for col in name_cols:
+                            if col in row:
+                                cv_name = row.get(col, '')
+                                break
+                    
+                    # Try different possible column names for CV link
+                    cv_link_cols = [
+                        'UPLOAD YOUR CV HERE', 'CV Link', 'cv link', 'CV URL', 'Resume Link', 
+                        'resume link', 'CV', 'Resume', 'Upload CV'
+                    ]
+                    
+                    cv_link = ''
+                    for col in cv_link_cols:
+                        if col in row:
+                            cv_link = str(row.get(col, '')).strip()
+                            if cv_link:  # If we found a non-empty link, use it
+                                break
+                    
+                    # Try different possible column names for experience date
+                    exp_date_cols = [
+                        'Experience Start Date', 'Start Date', 'Work Start Date', 
+                        'Career Start', 'Job Start Date', 'experience_start_date'
+                    ]
+                    
+                    start_date_str = ''
+                    for col in exp_date_cols:
+                        if col in row:
+                            start_date_str = row.get(col, '')
+                            if start_date_str:  # If we found a non-empty date, use it
+                                break
+                    
                     # Calculate years of experience and get CV content
                     years_exp, _, cv_content = calculate_years_experience(
                         cv_url=cv_link,
-                        start_date_str=row.get('Experience Start Date', '')
+                        start_date_str=start_date_str
                     )
 
+                    # Try different possible column names for email
+                    email_cols = ['EMAIL', 'Email', 'email', 'E-mail', 'e-mail', 'Contact Email']
+                    
+                    email = ''
+                    for col in email_cols:
+                        if col in row:
+                            email = str(row.get(col, '')).strip()
+                            if email:  # If we found a non-empty email, use it
+                                break
+                    
+                    # Try to get years of experience from the spreadsheet if available
+                    sheet_years_cols = ['HOW MANY YEARS EXPERIENCE DO YOU HAVE?', 'Years Experience', 'Experience (Years)', 'Years']
+                    sheet_years = None
+                    
+                    for col in sheet_years_cols:
+                        if col in row:
+                            try:
+                                # Try to extract a number from the cell
+                                years_str = str(row.get(col, '')).strip()
+                                if years_str:
+                                    # Extract digits from the string (e.g., "5 years" -> 5)
+                                    import re
+                                    digits = re.findall(r'\d+', years_str)
+                                    if digits:
+                                        sheet_years = float(digits[0])
+                                        break
+                            except:
+                                # If conversion fails, continue to the next column
+                                pass
+                    
+                    # If we have years from the sheet and not from CV parsing, use that
+                    if sheet_years is not None and (years_exp == 0 or years_exp is None):
+                        years_exp = sheet_years
+                                
                     # Create CV dictionary
                     cv_dict = {
                         'name': cv_name or "None",
-                        'email': str(row.get('EMAIL', '')).strip() or "None",
+                        'email': email or "None",
                         'cv_link': cv_link or "None",
                         'years_experience': years_exp,
                         'cv_text': cv_content if isinstance(cv_content, str) else str(cv_content)
@@ -290,14 +389,31 @@ def main():
                     }
                 )
 
-                # Export option
-                csv = results_df.to_csv(index=False)
-                st.download_button(
-                    label="Download Results CSV",
-                    data=csv,
-                    file_name="cv_evaluation_results.csv",
-                    mime="text/csv"
-                )
+                # Export options
+                export_col1, export_col2 = st.columns(2)
+                with export_col1:
+                    csv = results_df.to_csv(index=False)
+                    st.download_button(
+                        label="Download Results CSV",
+                        data=csv,
+                        file_name="cv_evaluation_results.csv",
+                        mime="text/csv"
+                    )
+                
+                # Save to Google Sheet if enabled
+                if save_to_sheet:
+                    with export_col2:
+                        try:
+                            # Format the output range
+                            output_range = f"{output_sheet}!A1"
+                            
+                            # Write to the Google Sheet
+                            with st.spinner("Saving results to Google Sheet..."):
+                                google_client.write_to_sheet(sheet_id, output_range, results_df)
+                                st.success(f"Results successfully saved to sheet '{output_sheet}'")
+                        except Exception as e:
+                            st.error(f"Failed to save results: {str(e)}")
+                            st.info("Make sure you've shared your sheet with edit permissions to the Service Account Email above.")
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")

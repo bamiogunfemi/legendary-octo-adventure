@@ -8,7 +8,8 @@ import streamlit as st
 
 class GoogleSheetClient:
     def __init__(self):
-        self.SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+        # Update scope to allow both reading and writing
+        self.SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
         self.credentials = None
         self.service_account_email = None
         self.initialize_credentials()
@@ -56,3 +57,54 @@ class GoogleSheetClient:
         except Exception as e:
             st.error(f"Error accessing Google Sheet. Make sure you've shared the sheet with the service account email shown above.")
             raise Exception(f"Error fetching sheet data: {str(e)}")
+            
+    def write_to_sheet(self, spreadsheet_id, sheet_range, data_frame):
+        """Write DataFrame data to a Google Sheet
+        
+        Args:
+            spreadsheet_id (str): The ID of the Google Sheet
+            sheet_range (str): The range to write to (e.g., 'Results!A1')
+            data_frame (pd.DataFrame): The DataFrame containing results
+            
+        Returns:
+            bool: True if successful, raises exception otherwise
+        """
+        if not self.credentials:
+            raise ValueError("Credentials not initialized")
+            
+        try:
+            # Create headers and data
+            headers = data_frame.columns.tolist()
+            values = [headers]  # Start with headers as first row
+            
+            # Add data rows
+            for _, row in data_frame.iterrows():
+                values.append(row.tolist())
+                
+            # Connect to the API
+            service = build('sheets', 'v4', credentials=self.credentials)
+            sheet = service.spreadsheets()
+            
+            # Clear the existing data in the range
+            try:
+                sheet.values().clear(
+                    spreadsheetId=spreadsheet_id,
+                    range=sheet_range
+                ).execute()
+            except Exception as e:
+                # If clearing fails (e.g., new sheet), continue anyway
+                pass
+                
+            # Write the data
+            result = sheet.values().update(
+                spreadsheetId=spreadsheet_id,
+                range=sheet_range,
+                valueInputOption="RAW",
+                body={"values": values}
+            ).execute()
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"Error writing to Google Sheet: {str(e)}")
+            raise Exception(f"Error writing to sheet: {str(e)}")
