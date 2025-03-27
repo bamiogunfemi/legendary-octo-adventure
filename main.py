@@ -89,22 +89,6 @@ def main():
         help="Enter the role title"
     )
 
-    # Default job description
-    default_jd = """About You
-    • python
-    • RESTful API
-    • webhooks
-    • AWS, GCP and Azure 
-    • ArgoCD, Kubernetes & docker
-    • postgres and mongodb
-    • testing 
-    • Github Actions
-
-Nice to have
-   • Golang 
-   • including IaC (Terraform, CloudFormation)
-    """
-
     jd_text = st.sidebar.text_area(
         "Enter Job Description",
         value="",
@@ -237,8 +221,21 @@ Nice to have
 
                 # Detailed results table
                 st.write("### Detailed Results")
+                
+                # Apply conditional formatting
+                def color_score(val):
+                    if val >= 80:  # Top candidates
+                        return 'background-color: #d4edda; color: #155724'  # Green
+                    elif val < 40:  # Unsuitable candidates
+                        return 'background-color: #f8d7da; color: #721c24'  # Red
+                    else:
+                        return ''
+                
+                # Apply the styling
+                styled_df = results_df.style.applymap(color_score, subset=['overall_score'])
+                
                 st.dataframe(
-                    results_df,
+                    styled_df,
                     column_config={
                         "name": "Name",
                         "email": "Email",
