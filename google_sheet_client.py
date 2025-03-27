@@ -51,7 +51,32 @@ class GoogleSheetClient:
                 st.warning("No data found in the specified sheet range")
                 return pd.DataFrame()
 
-            df = pd.DataFrame(values[1:], columns=values[0])
+            # Make the data frame creation more flexible
+            if len(values) > 1:
+                # If there are headers and data rows
+                headers = values[0]
+                data = values[1:]
+                
+                # Create dataframe and handle the case when columns don't match
+                # by setting columns explicitly and filling missing values
+                df = pd.DataFrame(data)
+                
+                # If number of headers is less than number of columns, add generic headers
+                if len(headers) < df.shape[1]:
+                    for i in range(len(headers), df.shape[1]):
+                        headers.append(f"Column{i+1}")
+                
+                # If number of headers is more than columns, truncate to match
+                if len(headers) > df.shape[1]:
+                    headers = headers[:df.shape[1]]
+                    
+                # Set the column names
+                df.columns = headers
+                
+            else:
+                # Only headers, no data rows
+                df = pd.DataFrame(columns=values[0] if values else [])
+                
             return df
 
         except Exception as e:
