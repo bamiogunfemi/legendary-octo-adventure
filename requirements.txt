@@ -1,0 +1,14 @@
+streamlit
+anthropic
+dateparser
+deepseek
+docx
+google-api-python-client
+google-auth
+nltk
+pandas
+pypdf2
+python-docx
+requests
+twilio
+trafilatura
