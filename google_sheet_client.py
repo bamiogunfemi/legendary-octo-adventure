@@ -4,6 +4,7 @@ from googleapiclient.discovery import build
 import pandas as pd
 import os
 import json
+import re
 import streamlit as st
 
 class GoogleSheetClient:
@@ -39,6 +40,16 @@ class GoogleSheetClient:
             raise ValueError("Credentials not initialized")
 
         try:
+            # Check if range starts with a non-first row
+            skip_header = False
+            match = re.search(r'!([A-Z]+)(\d+)', range_name)
+            if match:
+                row_num = int(match.group(2))
+                if row_num > 1:
+                    # Range doesn't start at row 1, so we don't expect headers
+                    skip_header = True
+                    print(f"Range starts at row {row_num}, will skip header processing")
+            
             service = build('sheets', 'v4', credentials=self.credentials)
             sheet = service.spreadsheets()
             result = sheet.values().get(
@@ -52,7 +63,13 @@ class GoogleSheetClient:
                 return pd.DataFrame()
 
             # Make the data frame creation more flexible
-            if len(values) > 1:
+            if skip_header:
+                # If range doesn't start with row 1, treat all values as data (no headers)
+                # Use column letters as headers (A, B, C, etc.)
+                df = pd.DataFrame(values)
+                headers = [chr(65 + i) for i in range(df.shape[1])]  # A, B, C, ...
+                df.columns = headers
+            elif len(values) > 1:
                 # If there are headers and data rows
                 headers = values[0]
                 data = values[1:]
@@ -80,8 +97,22 @@ class GoogleSheetClient:
             return df
 
         except Exception as e:
-            st.error(f"Error accessing Google Sheet. Make sure you've shared the sheet with the service account email shown above.")
-            raise Exception(f"Error fetching sheet data: {str(e)}")
+            error_msg = str(e)
+            
+            # Check for common errors and provide helpful messages
+            if "Unable to parse range" in error_msg:
+                sheet_name_error = "Error: Sheet name may be incorrect. Please check that the sheet name matches exactly."
+                st.error(sheet_name_error)
+                st.info("In Google Sheets, check the tabs at the bottom of your spreadsheet to see the exact sheet names.")
+                raise Exception(f"{sheet_name_error} Original error: {error_msg}")
+            elif "not found" in error_msg.lower():
+                access_error = "Error accessing Google Sheet. Please verify the Sheet ID is correct."
+                st.error(access_error)
+                raise Exception(f"{access_error} Original error: {error_msg}")
+            else:
+                access_error = f"Error accessing Google Sheet. Make sure you've shared the sheet with the service account email shown above."
+                st.error(access_error)
+                raise Exception(f"Error fetching sheet data: {error_msg}")
             
     def write_to_sheet(self, spreadsheet_id, sheet_range, data_frame):
         """Write DataFrame data to a Google Sheet
@@ -98,13 +129,40 @@ class GoogleSheetClient:
             raise ValueError("Credentials not initialized")
             
         try:
-            # Create headers and data
-            headers = data_frame.columns.tolist()
-            values = [headers]  # Start with headers as first row
+            # Check if we're writing to a range that doesn't start at row 1
+            # or if we have a special _NOHEADER indicator
+            skip_header = False
             
-            # Add data rows
-            for _, row in data_frame.iterrows():
-                values.append(row.tolist())
+            # Check for explicit _NOHEADER indicator
+            if "_NOHEADER" in sheet_range:
+                skip_header = True
+                # Remove the indicator for actual API calls
+                sheet_range = sheet_range.replace("_NOHEADER", "")
+                print(f"Explicit _NOHEADER flag detected. Headers will be skipped.")
+            
+            # Also check based on row number
+            match = re.search(r'!([A-Z]+)(\d+)', sheet_range)
+            if match:
+                row_num = int(match.group(2))
+                if row_num > 1:
+                    # Range doesn't start at row 1, don't include headers
+                    skip_header = True
+                    print(f"Output range starts at row {row_num}, will skip writing headers")
+            
+            # Prepare the values to write
+            if skip_header:
+                # Just add data rows without headers
+                values = []
+                for _, row in data_frame.iterrows():
+                    values.append(row.tolist())
+            else:
+                # Create headers and data
+                headers = data_frame.columns.tolist()
+                values = [headers]  # Start with headers as first row
+                
+                # Add data rows
+                for _, row in data_frame.iterrows():
+                    values.append(row.tolist())
                 
             # Connect to the API
             service = build('sheets', 'v4', credentials=self.credentials)
@@ -131,5 +189,23 @@ class GoogleSheetClient:
             return True
             
         except Exception as e:
-            st.error(f"Error writing to Google Sheet: {str(e)}")
-            raise Exception(f"Error writing to sheet: {str(e)}")
+            error_msg = str(e)
+            
+            # Check for common errors and provide more helpful messages
+            if "Unable to parse range" in error_msg:
+                sheet_name_error = "Error: Sheet name may be incorrect in the output range. Please check that the sheet name matches exactly."
+                st.error(sheet_name_error)
+                st.info("In Google Sheets, check the tabs at the bottom of your spreadsheet to see the exact sheet names.")
+                raise Exception(f"{sheet_name_error} Original error: {error_msg}")
+            elif "not found" in error_msg.lower():
+                access_error = "Error accessing Google Sheet. Please verify the Sheet ID is correct."
+                st.error(access_error)
+                raise Exception(f"{access_error} Original error: {error_msg}")
+            elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
+                permission_error = "Error: Insufficient permissions to write to the sheet."
+                st.error(permission_error)
+                st.info(f"Make sure you've shared the sheet with EDITOR access to: {self.service_account_email}")
+                raise Exception(f"{permission_error} Original error: {error_msg}")
+            else:
+                st.error(f"Error writing to Google Sheet: {error_msg}")
+                raise Exception(f"Error writing to sheet: {error_msg}")
